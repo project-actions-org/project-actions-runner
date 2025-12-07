@@ -1,0 +1,18 @@
+help:
+  short: Test conditionals
+  long: Test command to verify conditional logic works
+  order: 100
+
+steps:
+  - echo: "Starting conditional tests..."
+
+  - if-option: refresh
+    then:
+      - echo: "Refresh option was provided!"
+      - run: echo "Running refresh logic"
+
+  - if-option: verbose|debug
+    then:
+      - echo: "Verbose or debug mode enabled"
+
+  - echo: "Tests complete!"

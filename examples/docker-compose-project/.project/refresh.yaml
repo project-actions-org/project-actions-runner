@@ -1,0 +1,15 @@
+help:
+  short: Refresh the project
+  long: |
+    This command is used to refresh the project, which includes stopping
+    all services, clearing caches, and ensuring the environment is clean before
+    bringing it back up.
+  order: 3
+
+context: inside-container:web
+
+steps:
+  - run: composer install
+  - run: npm install
+  - run: npm run build
+

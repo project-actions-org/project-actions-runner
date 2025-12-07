@@ -1,0 +1,20 @@
+help:
+  short: Bring down the project
+  long: |
+    This command is used to bring the project down, which includes
+    stopping all services and cleaning up the environment.
+  order: 99
+
+context: outside-container
+
+steps:
+  - action: compose-stop
+
+# steps:
+#   - if-option: destroy
+#     then:
+#       - action: docker-compose-down
+
+#   - if-no-option: destroy
+#     then:
+#       - action: docker-compose-stop

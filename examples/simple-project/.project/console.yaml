@@ -1,0 +1,13 @@
+help:
+  short: Get a shell inside the web container
+  long: |
+    This command is used to get a shell inside the web container,
+    allowing you to run commands directly in the container's environment.
+  order: 50
+
+context: outside-container
+
+# steps:
+#   - action: docker-compose-exec
+#     service: web
+#     command: /bin/bash

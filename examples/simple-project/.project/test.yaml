@@ -1,0 +1,10 @@
+help:
+  short: Test command for Phase 1
+  long: Simple test command to verify the runner works
+  order: 99
+
+steps:
+  - echo: "Hello from Project Actions!"
+  - echo: "Testing the foundation..."
+  - run: echo "This is a shell command"
+  - run: pwd

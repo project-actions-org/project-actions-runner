@@ -1,0 +1,9 @@
+help:
+  short: Test command action
+  long: Test that the command action can call other commands
+  order: 101
+
+steps:
+  - echo: "Testing command action..."
+  - command: test
+  - echo: "Command action test complete!"

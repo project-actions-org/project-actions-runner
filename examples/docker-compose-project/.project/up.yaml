@@ -1,0 +1,23 @@
+help:
+  short: Bring the project up
+  long: |
+    This command is used to bring the project up, which includes starting
+    all necessary services and ensuring the environment is ready for use.
+
+    Note: If you are running this for the first time, you should run
+    `project setup` first.
+  order: 2
+
+context: outside-container
+
+steps:
+  - action: compose-up
+  - echo: "Project is now up and running"
+
+  - if-option: refresh|fresh
+    then:
+      - command: refresh
+
+  - echo: |
+      The project is now up and running. You can access it at:
+      - Web: http://localhost:8000

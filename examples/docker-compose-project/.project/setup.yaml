@@ -1,0 +1,18 @@
+help:
+  short: Setup the project
+  long: |
+    This command is used to set up the project, which includes
+    installing dependencies, building assets, and preparing the environment
+    for development.
+  order: 1
+
+context: outside-container
+
+# steps:
+#   - check-for: docker
+#     if-missing: |
+#       Docker is not installed. Please install Docker to proceed.
+
+#   - check-for: docker-compose
+#     if-missing: |
+#       Docker Compose is not installed. Please install Docker Compose to proceed.
