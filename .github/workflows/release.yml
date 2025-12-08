@@ -43,7 +43,9 @@ jobs:
           go build -ldflags "${LDFLAGS}" -o dist/command-runner-test ./cmd/runner
 
       - name: Test binary execution
-        run: ./dist/command-runner-test --version
+        run: |
+          mkdir -p .project
+          ./dist/command-runner-test --version
 
   build:
     name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
