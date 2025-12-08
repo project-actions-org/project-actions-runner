@@ -39,8 +39,8 @@ PLATFORM=$(detect_platform)
 RUNNER_NAME="command-runner-${PLATFORM}"
 RUNNER_PATH="${RUNTIME_DIR}/${RUNNER_NAME}"
 
-# Download URL (customize this to match your distribution location)
-DOWNLOAD_URL="${PROJECT_ACTIONS_DOWNLOAD_URL:-https://project-actions.org/dist}/${RUNNER_NAME}"
+# Download URL (defaults to GitHub releases)
+DOWNLOAD_URL="${PROJECT_ACTIONS_DOWNLOAD_URL:-https://github.com/project-actions-org/project-actions-runner/releases/latest/download}/${RUNNER_NAME}"
 
 # Check if binary exists and is executable
 if [ ! -f "$RUNNER_PATH" ] || [ ! -x "$RUNNER_PATH" ]; then
