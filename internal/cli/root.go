@@ -40,6 +40,9 @@ func Execute() error {
 		os.Exit(1)
 	}
 
+	// Register built-in management commands
+	rootCmd.AddCommand(newActionsCommand(cfg))
+
 	// Customize help template
 	rootCmd.SetHelpTemplate(helpTemplate)
 	rootCmd.SetUsageTemplate(usageTemplate)
