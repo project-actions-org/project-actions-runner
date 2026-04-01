@@ -97,3 +97,79 @@ steps:
 		t.Errorf("output = %q, want %q", string(content), "Hello, World!\n")
 	}
 }
+
+// TestExternalShellActionDefault verifies that a default input value is used
+// when the with: block does not provide it.
+func TestExternalShellActionDefault(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	commandsDir := filepath.Join(tmpDir, ".project", "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	actionDir := filepath.Join(tmpDir, ".project", ".runtime", "actions", "test-src", "greet")
+	if err := os.MkdirAll(actionDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	actionYAML := `name: Greeter
+inputs:
+  name:
+    required: true
+  greeting:
+    required: false
+    default: Howdy
+`
+	if err := os.WriteFile(filepath.Join(actionDir, "action.yaml"), []byte(actionYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	outputFile := filepath.Join(tmpDir, "output.txt")
+	script := fmt.Sprintf("#!/bin/sh\necho \"${INPUT_GREETING}, ${INPUT_NAME}!\" > %s\n", outputFile)
+	if err := os.WriteFile(filepath.Join(actionDir, "run.sh"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	commandYAML := `sources:
+  test-src: github.com/test/test-project-actions@v1
+
+help:
+  short: Test default input
+
+steps:
+  - action: test-src/greet
+    with:
+      name: Partner
+`
+	if err := os.WriteFile(filepath.Join(commandsDir, "greet-default.yaml"), []byte(commandYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	// WARNING: os.Chdir is process-global. This test is not safe to run with t.Parallel().
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	log := logger.New()
+	eng := executor.NewEngine(cfg, log)
+
+	if err := eng.ExecuteCommand("greet-default", []string{}); err != nil {
+		t.Fatalf("ExecuteCommand() error = %v", err)
+	}
+
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("expected output file: %v", err)
+	}
+	if string(content) != "Howdy, Partner!\n" {
+		t.Errorf("output = %q, want %q", string(content), "Howdy, Partner!\n")
+	}
+}
