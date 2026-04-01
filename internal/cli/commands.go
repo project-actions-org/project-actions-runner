@@ -126,7 +126,7 @@ func validateSourceConsistency(cfg *config.Config) error {
 		}
 		cmd, err := parser.ParseCommandFile(cmdFile, name)
 		if err != nil {
-			continue
+			return fmt.Errorf("failed to parse command file %s: %w", cmdFile, err)
 		}
 		for alias, rawURL := range cmd.Sources {
 			if existing, conflict := seen[alias]; conflict {

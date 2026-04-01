@@ -3,12 +3,13 @@ package cli
 import (
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/project-actions/runner/internal/config"
 )
 
-func TestCollectAndValidateSources_Conflict(t *testing.T) {
+func TestValidateSourceConsistency_Conflict(t *testing.T) {
 	tmpDir := t.TempDir()
 	commandsDir := filepath.Join(tmpDir, ".project", "commands")
 	if err := os.MkdirAll(commandsDir, 0755); err != nil {
@@ -45,10 +46,12 @@ steps: []
 	err := validateSourceConsistency(cfg)
 	if err == nil {
 		t.Error("expected conflict error, got nil")
+	} else if !strings.Contains(err.Error(), "aws") {
+		t.Errorf("expected error to mention source alias 'aws', got: %v", err)
 	}
 }
 
-func TestCollectAndValidateSources_NoConflict(t *testing.T) {
+func TestValidateSourceConsistency_NoConflict(t *testing.T) {
 	tmpDir := t.TempDir()
 	commandsDir := filepath.Join(tmpDir, ".project", "commands")
 	if err := os.MkdirAll(commandsDir, 0755); err != nil {
@@ -84,5 +87,33 @@ steps: []
 
 	if err := validateSourceConsistency(cfg); err != nil {
 		t.Errorf("unexpected error: %v", err)
+	}
+}
+
+func TestValidateSourceConsistency_NoSources(t *testing.T) {
+	tmpDir := t.TempDir()
+	commandsDir := filepath.Join(tmpDir, ".project", "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	// Command files with no sources: block at all
+	yaml1 := `help:
+  short: Command one
+steps: []
+`
+	if err := os.WriteFile(filepath.Join(commandsDir, "one.yaml"), []byte(yaml1), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		ProjectRoot: tmpDir,
+		ProjectDir:  filepath.Join(tmpDir, ".project"),
+		CommandsDir: commandsDir,
+		RuntimeDir:  filepath.Join(tmpDir, ".project", ".runtime"),
+	}
+
+	if err := validateSourceConsistency(cfg); err != nil {
+		t.Errorf("unexpected error for command with no sources: %v", err)
 	}
 }
