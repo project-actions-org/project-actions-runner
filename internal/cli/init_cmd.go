@@ -8,6 +8,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"time"
 
 	"github.com/project-actions/runner/internal/config"
 	"github.com/spf13/cobra"
@@ -15,6 +16,9 @@ import (
 
 const templatesManifestURL = "https://raw.githubusercontent.com/project-actions/templates/main/manifest.json"
 const templatesBaseURL = "https://raw.githubusercontent.com/project-actions/templates/main"
+
+// httpClient is used for all template downloads with a sensible timeout.
+var httpClient = &http.Client{Timeout: 30 * time.Second}
 
 // TemplateEntry describes a single template in the manifest.
 type TemplateEntry struct {
@@ -47,7 +51,8 @@ Examples:
 		RunE: func(cmd *cobra.Command, args []string) error {
 			manifest, err := fetchManifest(manifestURL)
 			if err != nil {
-				return fmt.Errorf("failed to fetch template manifest: %w\nCheck your internet connection.", err)
+				fmt.Fprintln(cmd.ErrOrStderr(), "Check your internet connection.")
+				return fmt.Errorf("failed to fetch template manifest: %w", err)
 			}
 
 			if len(args) == 0 {
@@ -91,11 +96,14 @@ Examples:
 
 // fetchManifest downloads and parses the templates manifest JSON.
 func fetchManifest(url string) (TemplatesManifest, error) {
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return nil, err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("server returned %d", resp.StatusCode)
 	}
@@ -108,11 +116,14 @@ func fetchManifest(url string) (TemplatesManifest, error) {
 
 // downloadFile fetches a URL and writes the response body to destPath.
 func downloadFile(url, destPath string) error {
-	resp, err := http.Get(url)
+	resp, err := httpClient.Get(url)
 	if err != nil {
 		return err
 	}
-	defer resp.Body.Close()
+	defer func() {
+		io.Copy(io.Discard, resp.Body)
+		resp.Body.Close()
+	}()
 	if resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("server returned %d", resp.StatusCode)
 	}

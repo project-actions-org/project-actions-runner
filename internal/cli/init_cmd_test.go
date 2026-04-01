@@ -107,9 +107,17 @@ func TestInitCommandDownloadsFiles(t *testing.T) {
 		t.Fatalf("init command error = %v", err)
 	}
 
-	for _, file := range []string{"setup.yaml", "test.yaml"} {
-		if _, err := os.Stat(filepath.Join(commandsDir, file)); err != nil {
-			t.Errorf("expected %s to exist: %v", file, err)
+	expectedContents := map[string]string{
+		"setup.yaml": "help:\n  short: Setup\nsteps: []\n",
+		"test.yaml":  "help:\n  short: Test\nsteps: []\n",
+	}
+	for file, want := range expectedContents {
+		got, err := os.ReadFile(filepath.Join(commandsDir, file))
+		if err != nil {
+			t.Fatalf("expected %s to exist: %v", file, err)
+		}
+		if string(got) != want {
+			t.Errorf("%s content = %q, want %q", file, string(got), want)
 		}
 	}
 }
