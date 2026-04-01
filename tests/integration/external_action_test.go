@@ -19,11 +19,15 @@ func TestExternalShellAction(t *testing.T) {
 
 	// Create .project/commands directory
 	commandsDir := filepath.Join(tmpDir, ".project", "commands")
-	os.MkdirAll(commandsDir, 0755)
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Pre-populate the actions cache to avoid real git clone in tests
 	actionDir := filepath.Join(tmpDir, ".project", ".runtime", "actions", "test-src", "greet")
-	os.MkdirAll(actionDir, 0755)
+	if err := os.MkdirAll(actionDir, 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write action.yaml
 	actionYAML := `name: Greeter
@@ -37,12 +41,16 @@ inputs:
     required: false
     default: Hello
 `
-	os.WriteFile(filepath.Join(actionDir, "action.yaml"), []byte(actionYAML), 0644)
+	if err := os.WriteFile(filepath.Join(actionDir, "action.yaml"), []byte(actionYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write run.sh — writes to a file so we can verify execution
 	outputFile := filepath.Join(tmpDir, "output.txt")
 	script := fmt.Sprintf("#!/bin/sh\necho \"${INPUT_GREETING}, ${INPUT_NAME}!\" > %s\n", outputFile)
-	os.WriteFile(filepath.Join(actionDir, "run.sh"), []byte(script), 0644)
+	if err := os.WriteFile(filepath.Join(actionDir, "run.sh"), []byte(script), 0755); err != nil {
+		t.Fatal(err)
+	}
 
 	// Write command YAML referencing the external action
 	// Note: sources block is present but fetch is skipped since cache is pre-populated
@@ -57,12 +65,17 @@ steps:
     with:
       name: World
 `
-	os.WriteFile(filepath.Join(commandsDir, "greet.yaml"), []byte(commandYAML), 0644)
+	if err := os.WriteFile(filepath.Join(commandsDir, "greet.yaml"), []byte(commandYAML), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	// Change to tmpDir so config.LoadConfig() finds .project
 	oldDir, _ := os.Getwd()
 	defer os.Chdir(oldDir)
-	os.Chdir(tmpDir)
+	// WARNING: os.Chdir is process-global. This test is not safe to run with t.Parallel().
+	if err := os.Chdir(tmpDir); err != nil {
+		t.Fatal(err)
+	}
 
 	cfg, err := config.LoadConfig()
 	if err != nil {

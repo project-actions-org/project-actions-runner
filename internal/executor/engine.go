@@ -271,7 +271,7 @@ func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.Execution
 	resolved, err := resolver.Resolve(sourceName, actionName, source, e.config.ProjectRoot)
 	if err != nil {
 		e.logger.StepFail(step.ActionName, err)
-		return err
+		return fmt.Errorf("action %q failed to resolve: %w", step.ActionName, err)
 	}
 
 	// Extract the "with:" params from config
