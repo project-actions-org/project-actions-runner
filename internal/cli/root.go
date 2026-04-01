@@ -42,6 +42,7 @@ func Execute() error {
 
 	// Register built-in management commands
 	rootCmd.AddCommand(newActionsCommand(cfg))
+	rootCmd.AddCommand(newInitCommand(cfg))
 
 	// Customize help template
 	rootCmd.SetHelpTemplate(helpTemplate)
