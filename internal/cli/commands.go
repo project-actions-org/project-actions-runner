@@ -16,6 +16,11 @@ var orderedCommands []*cobra.Command
 
 // RegisterProjectCommands dynamically registers all YAML commands as Cobra subcommands
 func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
+	// Validate that sources are consistent across all command files
+	if err := validateSourceConsistency(cfg); err != nil {
+		return err
+	}
+
 	// Get list of all command files
 	commandNames, err := cfg.ListCommands()
 	if err != nil {
@@ -97,4 +102,44 @@ func createDynamicCommand(name string, cmd *parser.Command, cfg *config.Config) 
 	}
 
 	return cobraCmd
+}
+
+// validateSourceConsistency collects sources from all command files and errors
+// if the same source name is declared with different URLs or refs in different files.
+func validateSourceConsistency(cfg *config.Config) error {
+	commandNames, err := cfg.ListCommands()
+	if err != nil {
+		return fmt.Errorf("failed to list commands: %w", err)
+	}
+
+	// Map from source alias to "file:rawURL" for error reporting
+	type sourceEntry struct {
+		file   string
+		rawURL string
+	}
+	seen := make(map[string]sourceEntry)
+
+	for _, name := range commandNames {
+		cmdFile, err := cfg.FindCommandFile(name)
+		if err != nil {
+			continue
+		}
+		cmd, err := parser.ParseCommandFile(cmdFile, name)
+		if err != nil {
+			continue
+		}
+		for alias, rawURL := range cmd.Sources {
+			if existing, conflict := seen[alias]; conflict {
+				if existing.rawURL != rawURL {
+					return fmt.Errorf(
+						"conflicting source %q: %s declares %q but %s declares %q — all command files must agree on the same URL and ref",
+						alias, existing.file, existing.rawURL, cmdFile, rawURL,
+					)
+				}
+			} else {
+				seen[alias] = sourceEntry{file: cmdFile, rawURL: rawURL}
+			}
+		}
+	}
+	return nil
 }
