@@ -212,3 +212,54 @@ steps:
 		})
 	}
 }
+
+func TestParseCommandFileWithSources(t *testing.T) {
+	tmpDir := t.TempDir()
+	yaml := `sources:
+  aws: github.com/project-actions/aws-project-actions@v1
+  utils: github.com/myorg/my-project-actions@main
+
+help:
+  short: Test command
+
+steps:
+  - echo: "hello"
+`
+	path := filepath.Join(tmpDir, "test.yaml")
+	os.WriteFile(path, []byte(yaml), 0644)
+
+	cmd, err := ParseCommandFile(path, "test")
+	if err != nil {
+		t.Fatalf("ParseCommandFile() error = %v", err)
+	}
+
+	if len(cmd.Sources) != 2 {
+		t.Fatalf("expected 2 sources, got %d", len(cmd.Sources))
+	}
+	if cmd.Sources["aws"] != "github.com/project-actions/aws-project-actions@v1" {
+		t.Errorf("aws source = %q, want %q", cmd.Sources["aws"], "github.com/project-actions/aws-project-actions@v1")
+	}
+	if cmd.Sources["utils"] != "github.com/myorg/my-project-actions@main" {
+		t.Errorf("utils source = %q, want %q", cmd.Sources["utils"], "github.com/myorg/my-project-actions@main")
+	}
+}
+
+func TestParseCommandFileWithoutSources(t *testing.T) {
+	tmpDir := t.TempDir()
+	yaml := `help:
+  short: Test command
+
+steps:
+  - echo: "hello"
+`
+	path := filepath.Join(tmpDir, "nosources.yaml")
+	os.WriteFile(path, []byte(yaml), 0644)
+
+	cmd, err := ParseCommandFile(path, "nosources")
+	if err != nil {
+		t.Fatalf("ParseCommandFile() error = %v", err)
+	}
+	if cmd.Sources != nil && len(cmd.Sources) != 0 {
+		t.Errorf("expected nil/empty sources, got %v", cmd.Sources)
+	}
+}

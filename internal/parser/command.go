@@ -10,6 +10,7 @@ import (
 // Command represents a parsed command from YAML
 type Command struct {
 	Name    string                   `yaml:"-"` // Set separately, not from YAML
+	Sources map[string]string        `yaml:"sources,omitempty"`
 	Help    HelpMetadata             `yaml:"help"`
 	Context string                   `yaml:"context,omitempty"`
 	Steps   []map[string]interface{} `yaml:"steps"`
