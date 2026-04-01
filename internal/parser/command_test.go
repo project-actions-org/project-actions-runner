@@ -226,7 +226,9 @@ steps:
   - echo: "hello"
 `
 	path := filepath.Join(tmpDir, "test.yaml")
-	os.WriteFile(path, []byte(yaml), 0644)
+	if err := os.WriteFile(path, []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cmd, err := ParseCommandFile(path, "test")
 	if err != nil {
@@ -253,13 +255,15 @@ steps:
   - echo: "hello"
 `
 	path := filepath.Join(tmpDir, "nosources.yaml")
-	os.WriteFile(path, []byte(yaml), 0644)
+	if err := os.WriteFile(path, []byte(yaml), 0644); err != nil {
+		t.Fatal(err)
+	}
 
 	cmd, err := ParseCommandFile(path, "nosources")
 	if err != nil {
 		t.Fatalf("ParseCommandFile() error = %v", err)
 	}
-	if cmd.Sources != nil && len(cmd.Sources) != 0 {
+	if len(cmd.Sources) != 0 {
 		t.Errorf("expected nil/empty sources, got %v", cmd.Sources)
 	}
 }
