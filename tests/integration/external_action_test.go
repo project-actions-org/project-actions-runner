@@ -1,0 +1,86 @@
+package integration
+
+import (
+	"fmt"
+	"os"
+	"path/filepath"
+	"testing"
+
+	"github.com/project-actions/runner/internal/config"
+	"github.com/project-actions/runner/internal/executor"
+	"github.com/project-actions/runner/internal/logger"
+)
+
+// TestExternalShellAction tests the full pipeline with a local shell action.
+// It simulates an action source by creating the expected directory structure
+// in the .project/.runtime/actions/ cache (bypassing git clone).
+func TestExternalShellAction(t *testing.T) {
+	tmpDir := t.TempDir()
+
+	// Create .project/commands directory
+	commandsDir := filepath.Join(tmpDir, ".project", "commands")
+	os.MkdirAll(commandsDir, 0755)
+
+	// Pre-populate the actions cache to avoid real git clone in tests
+	actionDir := filepath.Join(tmpDir, ".project", ".runtime", "actions", "test-src", "greet")
+	os.MkdirAll(actionDir, 0755)
+
+	// Write action.yaml
+	actionYAML := `name: Greeter
+description: Says hello
+inputs:
+  name:
+    description: Who to greet
+    required: true
+  greeting:
+    description: The greeting word
+    required: false
+    default: Hello
+`
+	os.WriteFile(filepath.Join(actionDir, "action.yaml"), []byte(actionYAML), 0644)
+
+	// Write run.sh — writes to a file so we can verify execution
+	outputFile := filepath.Join(tmpDir, "output.txt")
+	script := fmt.Sprintf("#!/bin/sh\necho \"${INPUT_GREETING}, ${INPUT_NAME}!\" > %s\n", outputFile)
+	os.WriteFile(filepath.Join(actionDir, "run.sh"), []byte(script), 0644)
+
+	// Write command YAML referencing the external action
+	// Note: sources block is present but fetch is skipped since cache is pre-populated
+	commandYAML := `sources:
+  test-src: github.com/test/test-project-actions@v1
+
+help:
+  short: Test external action
+
+steps:
+  - action: test-src/greet
+    with:
+      name: World
+`
+	os.WriteFile(filepath.Join(commandsDir, "greet.yaml"), []byte(commandYAML), 0644)
+
+	// Change to tmpDir so config.LoadConfig() finds .project
+	oldDir, _ := os.Getwd()
+	defer os.Chdir(oldDir)
+	os.Chdir(tmpDir)
+
+	cfg, err := config.LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig() error = %v", err)
+	}
+
+	log := logger.New()
+	eng := executor.NewEngine(cfg, log)
+
+	if err := eng.ExecuteCommand("greet", []string{}); err != nil {
+		t.Fatalf("ExecuteCommand() error = %v", err)
+	}
+
+	content, err := os.ReadFile(outputFile)
+	if err != nil {
+		t.Fatalf("expected output file to exist: %v", err)
+	}
+	if string(content) != "Hello, World!\n" {
+		t.Errorf("output = %q, want %q", string(content), "Hello, World!\n")
+	}
+}

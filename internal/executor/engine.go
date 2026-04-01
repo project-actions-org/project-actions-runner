@@ -3,11 +3,13 @@ package executor
 import (
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/project-actions/runner/internal/actions"
 	"github.com/project-actions/runner/internal/actions/builtin"
 	"github.com/project-actions/runner/internal/config"
+	"github.com/project-actions/runner/internal/external"
 	"github.com/project-actions/runner/internal/logger"
 	"github.com/project-actions/runner/internal/parser"
 )
@@ -143,6 +145,11 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return nil
 	}
 
+	// Handle external actions (source/action-name format)
+	if strings.Contains(step.ActionName, "/") {
+		return e.executeExternalAction(step, ctx)
+	}
+
 	// Get the action
 	action, err := e.actionRegistry.Get(step.ActionName)
 	if err != nil {
@@ -228,6 +235,64 @@ func (e *Engine) evaluateConditional(cond *parser.Conditional, ctx *actions.Exec
 	default:
 		return false, fmt.Errorf("unknown conditional type: %s", cond.Type)
 	}
+}
+
+// executeExternalAction handles steps with "source/action-name" format.
+func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.ExecutionContext) error {
+	parts := strings.SplitN(step.ActionName, "/", 2)
+	if len(parts) != 2 {
+		return fmt.Errorf("invalid external action format %q: expected source/action-name", step.ActionName)
+	}
+	sourceName, actionName := parts[0], parts[1]
+
+	// Look up the source URL from the command's declared sources
+	rawURL, ok := ctx.Sources[sourceName]
+	if !ok {
+		if len(ctx.Sources) == 0 {
+			return fmt.Errorf("no sources declared in this command file — add a sources: block to use external actions")
+		}
+		return fmt.Errorf("unknown action source %q — add it to the sources: block in your command file", sourceName)
+	}
+
+	source, err := external.ParseSourceURL(rawURL)
+	if err != nil {
+		return fmt.Errorf("invalid source URL for %q: %w", sourceName, err)
+	}
+	source.Name = sourceName
+
+	// Build fetcher and resolver
+	fetcher := &external.Fetcher{
+		ActionsDir: filepath.Join(e.config.RuntimeDir, "actions"),
+	}
+	resolver := &external.Resolver{Fetcher: fetcher}
+
+	// Resolve (fetch if needed, detect type, download binary if needed)
+	e.logger.StepStart(step.ActionName)
+	resolved, err := resolver.Resolve(sourceName, actionName, source, e.config.ProjectRoot)
+	if err != nil {
+		e.logger.StepFail(step.ActionName, err)
+		return err
+	}
+
+	// Extract the "with:" params from config
+	var withParams map[string]interface{}
+	if w, ok := step.Config["with"]; ok {
+		if wMap, ok := w.(map[string]interface{}); ok {
+			withParams = wMap
+		}
+	}
+	if withParams == nil {
+		withParams = make(map[string]interface{})
+	}
+
+	// Execute the action
+	if err := external.ExecuteAction(resolved, e.config.ProjectRoot, ctx.CommandName, ctx.Verbose, withParams); err != nil {
+		e.logger.StepFail(step.ActionName, err)
+		return fmt.Errorf("action %q failed: %w", step.ActionName, err)
+	}
+
+	e.logger.StepSuccess(step.ActionName)
+	return nil
 }
 
 // parseOptions extracts options from command-line arguments
