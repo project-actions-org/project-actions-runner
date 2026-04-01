@@ -90,6 +90,51 @@ steps: []
 	}
 }
 
+func TestCollectAllSources_Basic(t *testing.T) {
+	tmpDir := t.TempDir()
+	commandsDir := filepath.Join(tmpDir, ".project", "commands")
+	if err := os.MkdirAll(commandsDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	yaml1 := `sources:
+  aws: github.com/project-actions/aws-project-actions@v1
+help:
+  short: Command one
+steps: []
+`
+	yaml2 := `sources:
+  docker: github.com/project-actions/docker-project-actions@v1
+help:
+  short: Command two
+steps: []
+`
+	if err := os.WriteFile(filepath.Join(commandsDir, "one.yaml"), []byte(yaml1), 0644); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(commandsDir, "two.yaml"), []byte(yaml2), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &config.Config{
+		ProjectRoot: tmpDir,
+		ProjectDir:  filepath.Join(tmpDir, ".project"),
+		CommandsDir: commandsDir,
+		RuntimeDir:  filepath.Join(tmpDir, ".project", ".runtime"),
+	}
+
+	sources, err := collectAllSources(cfg)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if sources["aws"] != "github.com/project-actions/aws-project-actions@v1" {
+		t.Errorf("expected aws source, got %v", sources["aws"])
+	}
+	if sources["docker"] != "github.com/project-actions/docker-project-actions@v1" {
+		t.Errorf("expected docker source, got %v", sources["docker"])
+	}
+}
+
 func TestValidateSourceConsistency_NoSources(t *testing.T) {
 	tmpDir := t.TempDir()
 	commandsDir := filepath.Join(tmpDir, ".project", "commands")

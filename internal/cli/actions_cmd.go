@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"sort"
 	"strings"
 
 	"github.com/project-actions/runner/internal/config"
@@ -39,9 +40,17 @@ func newActionsListCommand(cfg *config.Config) *cobra.Command {
 				return nil
 			}
 
+			// Get sorted keys for deterministic output
+			aliases := make([]string, 0, len(sources))
+			for alias := range sources {
+				aliases = append(aliases, alias)
+			}
+			sort.Strings(aliases)
+
 			fetcher := &external.Fetcher{ActionsDir: filepath.Join(cfg.RuntimeDir, "actions")}
 			fmt.Print("Sources (from command files):\n\n")
-			for alias, rawURL := range sources {
+			for _, alias := range aliases {
+				rawURL := sources[alias]
 				status := "not fetched"
 				if fetcher.IsFetched(alias) {
 					status = "cached  ✓"
@@ -75,7 +84,15 @@ func newActionsUpdateCommand(cfg *config.Config) *cobra.Command {
 				toUpdate = map[string]string{args[0]: rawURL}
 			}
 
-			for alias, rawURL := range toUpdate {
+			// Sort for deterministic output
+			aliases := make([]string, 0, len(toUpdate))
+			for alias := range toUpdate {
+				aliases = append(aliases, alias)
+			}
+			sort.Strings(aliases)
+
+			for _, alias := range aliases {
+				rawURL := toUpdate[alias]
 				src, err := external.ParseSourceURL(rawURL)
 				if err != nil {
 					return fmt.Errorf("invalid source URL for %q: %w", alias, err)
@@ -175,7 +192,7 @@ func collectAllSources(cfg *config.Config) (map[string]string, error) {
 		}
 		cmd, err := parser.ParseCommandFile(cmdFile, name)
 		if err != nil {
-			continue
+			return nil, fmt.Errorf("failed to parse command file %s: %w", cmdFile, err)
 		}
 		for alias, rawURL := range cmd.Sources {
 			sources[alias] = rawURL
