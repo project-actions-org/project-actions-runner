@@ -15,6 +15,8 @@ type ExecutionContext struct {
 	Logger        *logger.Logger
 	Config        *config.Config
 	Verbose       bool // Show subprocess output
+	Sources       map[string]string // from command file sources: front-matter
+	CommandName   string            // name of the running command
 }
 
 // Action represents an executable action

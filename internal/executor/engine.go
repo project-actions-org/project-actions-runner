@@ -82,6 +82,8 @@ func (e *Engine) ExecuteCommand(commandName string, args []string) error {
 		Logger:        e.logger,
 		Config:        e.config,
 		Verbose:       verbose,
+		Sources:       cmd.Sources,
+		CommandName:   commandName,
 	}
 
 	// Check and handle context requirements
