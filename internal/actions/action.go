@@ -10,12 +10,12 @@ type ExecutionContext struct {
 	WorkingDir    string
 	Environment   map[string]string
 	Options       map[string]string
-	Args          []string          // positional arguments passed after flags
+	Args          []string // positional arguments passed after flags
 	ContainerMode bool
 	ServiceName   string
 	Logger        *logger.Logger
 	Config        *config.Config
-	Verbose       bool // Show subprocess output
+	Verbose       bool              // Show subprocess output
 	Sources       map[string]string // from command file sources: front-matter
 	CommandName   string            // name of the running command
 }
