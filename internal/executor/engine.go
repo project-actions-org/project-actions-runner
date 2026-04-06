@@ -65,8 +65,8 @@ func (e *Engine) ExecuteCommand(commandName string, args []string) error {
 		return fmt.Errorf("failed to parse command '%s': %w\n\nPlease check the YAML syntax in: %s", commandName, err, cmdFile)
 	}
 
-	// Parse options from args
-	options := parseOptions(args)
+	// Parse options and positional args from args
+	options, positionalArgs := parseOptions(args)
 
 	// Check if verbose mode is enabled
 	verbose := false
@@ -79,6 +79,7 @@ func (e *Engine) ExecuteCommand(commandName string, args []string) error {
 		WorkingDir:    e.config.ProjectRoot,
 		Environment:   make(map[string]string),
 		Options:       options,
+		Args:          positionalArgs,
 		ContainerMode: false,
 		ServiceName:   "",
 		Logger:        e.logger,
@@ -295,25 +296,39 @@ func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.Execution
 	return nil
 }
 
-// parseOptions extracts options from command-line arguments
-func parseOptions(args []string) map[string]string {
+// parseOptions extracts --flag options and positional arguments from command-line args.
+// Flags stop at the first non-"--" token or at an explicit "--" separator.
+func parseOptions(args []string) (map[string]string, []string) {
 	options := make(map[string]string)
+	var positional []string
 
-	for _, arg := range args {
-		if strings.HasPrefix(arg, "--") {
-			// Strip the -- prefix
-			opt := strings.TrimPrefix(arg, "--")
-
-			// Check for =value syntax
-			if strings.Contains(opt, "=") {
-				parts := strings.SplitN(opt, "=", 2)
-				options[parts[0]] = parts[1]
-			} else {
-				// Boolean flag
-				options[opt] = "true"
-			}
+	i := 0
+	for i < len(args) {
+		arg := args[i]
+		if arg == "--" {
+			// Everything after -- is positional
+			positional = args[i+1:]
+			break
 		}
+		if !strings.HasPrefix(arg, "--") {
+			// First non-flag token starts positional args
+			positional = args[i:]
+			break
+		}
+		// Parse --key or --key=value
+		opt := strings.TrimPrefix(arg, "--")
+		if strings.Contains(opt, "=") {
+			parts := strings.SplitN(opt, "=", 2)
+			options[parts[0]] = parts[1]
+		} else {
+			options[opt] = "true"
+		}
+		i++
 	}
 
-	return options
+	if positional == nil {
+		positional = []string{}
+	}
+
+	return options, positional
 }

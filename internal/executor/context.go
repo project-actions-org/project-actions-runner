@@ -64,14 +64,14 @@ func (cm *ContextManager) CheckContext(cmd *parser.Command, execCtx *actions.Exe
 		}
 
 	case "inside-container":
-		if !insideContainer {
+		// Always set ServiceName so run: steps can route via docker compose exec
+		// when the runner is outside the container.
+		execCtx.ServiceName = targetContext.ServiceName
+		if insideContainer {
+			execCtx.ContainerMode = true
+		} else {
 			cm.engine.logger.Warn("Command '%s' should run inside container '%s', but we're outside",
 				cmd.Name, targetContext.ServiceName)
-			// For now, just warn - could implement re-execution later
-		} else {
-			// Update execution context with container info
-			execCtx.ContainerMode = true
-			execCtx.ServiceName = targetContext.ServiceName
 		}
 
 	default:
