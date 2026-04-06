@@ -14,8 +14,8 @@ import (
 	"github.com/spf13/cobra"
 )
 
-const templatesManifestURL = "https://raw.githubusercontent.com/project-actions/templates/main/manifest.json"
-const templatesBaseURL = "https://raw.githubusercontent.com/project-actions/templates/main"
+const templatesManifestURL = "https://raw.githubusercontent.com/project-actions-org/templates/master/manifest.json"
+const templatesBaseURL = "https://raw.githubusercontent.com/project-actions-org/templates/master"
 
 // httpClient is used for all template downloads with a sensible timeout.
 var httpClient = &http.Client{Timeout: 30 * time.Second}
