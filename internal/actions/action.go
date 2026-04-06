@@ -10,6 +10,7 @@ type ExecutionContext struct {
 	WorkingDir    string
 	Environment   map[string]string
 	Options       map[string]string
+	Args          []string          // positional arguments passed after flags
 	ContainerMode bool
 	ServiceName   string
 	Logger        *logger.Logger
