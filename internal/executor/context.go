@@ -69,9 +69,6 @@ func (cm *ContextManager) CheckContext(cmd *parser.Command, execCtx *actions.Exe
 		execCtx.ServiceName = targetContext.ServiceName
 		if insideContainer {
 			execCtx.ContainerMode = true
-		} else {
-			cm.engine.logger.Warn("Command '%s' should run inside container '%s', but we're outside",
-				cmd.Name, targetContext.ServiceName)
 		}
 
 	default:

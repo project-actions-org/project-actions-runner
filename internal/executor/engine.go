@@ -172,8 +172,11 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return fmt.Errorf("invalid configuration for action '%s': %w", step.ActionName, err)
 	}
 
-	// Log step start
-	e.logger.StepStart(step.ActionName)
+	logStep := step.ActionName != "run" || ctx.Verbose
+
+	if logStep {
+		e.logger.StepStart(step.ActionName)
+	}
 
 	// Execute the action
 	if err := action.Execute(ctx, interpolatedConfig); err != nil {
@@ -181,8 +184,9 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return fmt.Errorf("action '%s' failed: %w", step.ActionName, err)
 	}
 
-	// Log step success
-	e.logger.StepSuccess(step.ActionName)
+	if logStep {
+		e.logger.StepSuccess(step.ActionName)
+	}
 
 	return nil
 }
