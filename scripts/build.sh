@@ -33,6 +33,14 @@ usage() {
     exit 1
 }
 
+# Ad-hoc sign a binary if on macOS (required for arm64 binaries)
+sign_if_macos() {
+    local binary="$1"
+    if [ "$(uname)" = "Darwin" ]; then
+        codesign --sign - "${binary}" 2>/dev/null || true
+    fi
+}
+
 # Build for current platform
 build() {
     echo -e "${BLUE}Building ${BINARY_NAME} for current platform...${NC}"
@@ -40,6 +48,7 @@ build() {
 
     mkdir -p "${DIST_DIR}"
     go build -ldflags "${LDFLAGS}" -o "${DIST_DIR}/${BINARY_NAME}" ./cmd/runner
+    sign_if_macos "${DIST_DIR}/${BINARY_NAME}"
 
     echo -e "${GREEN}Build complete: ${DIST_DIR}/${BINARY_NAME}${NC}"
 }
@@ -50,6 +59,7 @@ build_dev() {
 
     mkdir -p "${DIST_DIR}"
     go build -o "${DIST_DIR}/${BINARY_NAME}" ./cmd/runner
+    sign_if_macos "${DIST_DIR}/${BINARY_NAME}"
 
     echo -e "${GREEN}Build complete: ${DIST_DIR}/${BINARY_NAME}${NC}"
 }
@@ -70,6 +80,9 @@ build_all() {
 
         echo "Building for ${OS}/${ARCH} -> ${OUTPUT}"
         GOOS=$OS GOARCH=$ARCH go build -ldflags "${LDFLAGS}" -o "${OUTPUT}" ./cmd/runner
+        if [ "$OS" = "darwin" ]; then
+            sign_if_macos "${OUTPUT}"
+        fi
     done
 
     echo -e "${GREEN}All builds complete!${NC}"
