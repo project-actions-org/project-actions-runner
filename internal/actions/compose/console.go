@@ -42,7 +42,15 @@ func (a *ConsoleAction) Execute(ctx *actions.ExecutionContext, config map[string
 	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
-	return cmd.Run()
+	err := cmd.Run()
+	// An ExitError means the shell session ended with a non-zero exit code
+	// (e.g. the last command run inside was not found). That is not a runner
+	// error — only hard failures (docker not running, container not found)
+	// produce a non-ExitError and should be surfaced.
+	if _, ok := err.(*exec.ExitError); ok {
+		return nil
+	}
+	return err
 }
 
 func (a *ConsoleAction) Validate(config map[string]interface{}) error {
