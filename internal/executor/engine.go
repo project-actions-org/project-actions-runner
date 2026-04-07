@@ -146,9 +146,19 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return nil
 	}
 
+	// Interpolate <args> tokens in step config before dispatch
+	var interpolatedConfig map[string]interface{}
+	if step.Config != nil {
+		var err error
+		interpolatedConfig, err = interpolateConfig(step.Config, ctx.Args)
+		if err != nil {
+			return fmt.Errorf("argument interpolation failed: %w", err)
+		}
+	}
+
 	// Handle external actions (source/action-name format)
 	if strings.Contains(step.ActionName, "/") {
-		return e.executeExternalAction(step, ctx)
+		return e.executeExternalAction(step, ctx, interpolatedConfig)
 	}
 
 	// Get the action
@@ -158,7 +168,7 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 	}
 
 	// Validate action configuration
-	if err := action.Validate(step.Config); err != nil {
+	if err := action.Validate(interpolatedConfig); err != nil {
 		return fmt.Errorf("invalid configuration for action '%s': %w", step.ActionName, err)
 	}
 
@@ -166,7 +176,7 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 	e.logger.StepStart(step.ActionName)
 
 	// Execute the action
-	if err := action.Execute(ctx, step.Config); err != nil {
+	if err := action.Execute(ctx, interpolatedConfig); err != nil {
 		e.logger.StepFail(step.ActionName, err)
 		return fmt.Errorf("action '%s' failed: %w", step.ActionName, err)
 	}
@@ -239,7 +249,7 @@ func (e *Engine) evaluateConditional(cond *parser.Conditional, ctx *actions.Exec
 }
 
 // executeExternalAction handles steps with "source/action-name" format.
-func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.ExecutionContext) error {
+func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.ExecutionContext, stepConfig map[string]interface{}) error {
 	parts := strings.SplitN(step.ActionName, "/", 2)
 	if len(parts) != 2 {
 		return fmt.Errorf("invalid external action format %q: expected source/action-name", step.ActionName)
@@ -277,7 +287,7 @@ func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.Execution
 
 	// Extract the "with:" params from config
 	var withParams map[string]interface{}
-	if w, ok := step.Config["with"]; ok {
+	if w, ok := stepConfig["with"]; ok {
 		if wMap, ok := w.(map[string]interface{}); ok {
 			withParams = wMap
 		}

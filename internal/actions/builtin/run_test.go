@@ -1,7 +1,6 @@
 package builtin
 
 import (
-	"strings"
 	"testing"
 
 	"github.com/project-actions/runner/internal/actions"
@@ -65,105 +64,34 @@ func TestRunAction_Execute(t *testing.T) {
 	}
 }
 
-func TestRunAction_AtDollarInterpolation(t *testing.T) {
-	tests := []struct {
-		name      string
-		cmdStr    string
-		args      []string
-		wantErr   bool
-		errSubstr string
-	}{
-		{
-			name:    "at-dollar replaced with all args",
-			cmdStr:  "echo @$",
-			args:    []string{"hello", "world"},
-			wantErr: false,
-		},
-		{
-			name:    "at-dollar as prefix",
-			cmdStr:  "echo prefix-@$",
-			args:    []string{"suffix"},
-			wantErr: false,
-		},
-		{
-			name:      "at-dollar with empty args returns error",
-			cmdStr:    "echo @$",
-			args:      []string{},
-			wantErr:   true,
-			errSubstr: "no arguments given",
-		},
-		{
-			name:      "at-dollar with nil args returns error",
-			cmdStr:    "@$",
-			args:      nil,
-			wantErr:   true,
-			errSubstr: "no arguments given",
-		},
-		{
-			name:    "no at-dollar, args present, runs normally",
-			cmdStr:  "echo fixed",
-			args:    []string{"ignored", "args"},
-			wantErr: false,
-		},
-		{
-			name:    "multiple at-dollar occurrences all replaced",
-			cmdStr:  "echo @$ && echo @$",
-			args:    []string{"hi"},
-			wantErr: false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			ctx := makeRunCtx()
-			ctx.Args = tt.args
-
-			action := &RunAction{}
-			err := action.Execute(ctx, map[string]interface{}{"run": tt.cmdStr})
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("RunAction.Execute() error = %v, wantErr %v", err, tt.wantErr)
-			}
-			if tt.errSubstr != "" && err != nil {
-				if !strings.Contains(err.Error(), tt.errSubstr) {
-					t.Errorf("RunAction.Execute() error = %q, want to contain %q", err.Error(), tt.errSubstr)
-				}
-			}
-		})
-	}
-}
-
 func TestRunAction_ContextAwareRouting_WithService(t *testing.T) {
 	ctx := makeRunCtx()
 	ctx.ServiceName = "web"
-	ctx.Args = []string{"hello"}
 
-	// Simulate being outside the container: isInsideContainer returns false
+	// Simulate being outside the container: isInsideContainer returns false.
+	// Config is pre-interpolated — plain command string, no tokens.
 	action := &RunAction{isInsideContainer: func() bool { return false }}
 
-	// docker-compose exec will fail (not running), but the error should be
-	// exec-related, not "no arguments given" — confirms routing took the right branch
-	err := action.Execute(ctx, map[string]interface{}{"run": "echo @$"})
+	// docker compose exec will fail (not running), but the error should be
+	// exec-related, not a config error — confirms routing took the right branch.
+	err := action.Execute(ctx, map[string]interface{}{"run": "echo hello"})
 	if err == nil {
-		// docker-compose happened to be available and it worked — that's fine too
+		// docker compose happened to be available and it worked — fine too.
 		return
 	}
-	// The error should not be our empty-args error; it should be a system/exec error
-	if strings.Contains(err.Error(), "no arguments given") {
-		t.Errorf("got wrong error branch: %v", err)
+	if err.Error() == "run action requires a command" {
+		t.Errorf("got config error instead of routing error: %v", err)
 	}
 }
 
 func TestRunAction_ContextAwareRouting_InsideContainer(t *testing.T) {
 	ctx := makeRunCtx()
 	ctx.ServiceName = "web"
-	ctx.Args = []string{"hello"}
 
-	// Simulate being INSIDE the container: isInsideContainer returns true
-	// → should run locally (not via docker-compose exec)
+	// Simulate being INSIDE the container: should run locally.
 	action := &RunAction{isInsideContainer: func() bool { return true }}
 
-	err := action.Execute(ctx, map[string]interface{}{"run": "echo @$"})
+	err := action.Execute(ctx, map[string]interface{}{"run": "echo hello"})
 	if err != nil {
 		t.Errorf("expected local execution to succeed, got: %v", err)
 	}
@@ -172,10 +100,9 @@ func TestRunAction_ContextAwareRouting_InsideContainer(t *testing.T) {
 func TestRunAction_ContextAwareRouting_NoService(t *testing.T) {
 	ctx := makeRunCtx()
 	ctx.ServiceName = ""
-	ctx.Args = []string{"hello"}
 
 	action := &RunAction{}
-	err := action.Execute(ctx, map[string]interface{}{"run": "echo @$"})
+	err := action.Execute(ctx, map[string]interface{}{"run": "echo hello"})
 	if err != nil {
 		t.Errorf("expected no error for local execution, got: %v", err)
 	}

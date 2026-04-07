@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
-	"strings"
 
 	"github.com/project-actions/runner/internal/actions"
 	"github.com/project-actions/runner/internal/docker"
 )
 
 // RunAction executes a shell command.
-// It supports @$ interpolation (replaced by positional args) and context-aware
-// routing: when ctx.ServiceName is set and the runner is outside the container,
-// the command is forwarded through `docker-compose exec` instead of running locally.
+// When ctx.ServiceName is set and the runner is outside the container,
+// the command is forwarded through `docker compose exec` instead of running locally.
+// Argument interpolation (<args>, <args.N>, <args.length>) is handled upstream
+// by the executor engine before Execute is called.
 type RunAction struct {
 	isInsideContainer func() bool
 }
@@ -33,20 +33,12 @@ func (a *RunAction) Execute(ctx *actions.ExecutionContext, config map[string]int
 
 	cmdString := fmt.Sprint(cmdStr)
 
-	// Expand @$ → space-joined positional args
-	if strings.Contains(cmdString, "@$") {
-		if len(ctx.Args) == 0 {
-			return fmt.Errorf("no arguments given — usage: ./project run <script> [args...]")
-		}
-		cmdString = strings.ReplaceAll(cmdString, "@$", strings.Join(ctx.Args, " "))
-	}
-
 	ctx.Logger.CommandStart(cmdString)
 
 	var cmd *exec.Cmd
 	if ctx.ServiceName != "" && !a.containerCheck() {
-		// Outside the container: route through docker-compose exec
-		cmd = exec.Command("docker-compose", "exec", ctx.ServiceName, "sh", "-c", cmdString)
+		// Outside the container: route through docker compose exec
+		cmd = exec.Command("docker", "compose", "exec", ctx.ServiceName, "sh", "-c", cmdString)
 	} else {
 		// Inside the container (or no service specified): run locally
 		cmd = exec.Command("sh", "-c", cmdString)
