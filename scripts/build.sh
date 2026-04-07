@@ -3,7 +3,7 @@ set -e
 
 # Build script for Project Actions Runner
 
-VERSION="1.0.0"
+VERSION="0.3.3"
 BUILD_TIME=$(date +%Y%m%d%H%M)
 BINARY_NAME="command-runner"
 DIST_DIR="dist"

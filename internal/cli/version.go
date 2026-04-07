@@ -4,7 +4,7 @@ package cli
 // These variables are set via ldflags during build
 var (
 	// Version is the semantic version
-	Version = "1.0.0"
+	Version = "0.3.3"
 
 	// BuildTime is the build timestamp in format YYYYMMDDHHMM
 	BuildTime = "dev"
