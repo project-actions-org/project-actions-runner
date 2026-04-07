@@ -33,14 +33,16 @@ func (a *RunAction) Execute(ctx *actions.ExecutionContext, config map[string]int
 
 	cmdString := fmt.Sprint(cmdStr)
 
-	ctx.Logger.CommandStart(cmdString)
-
 	var cmd *exec.Cmd
 	if ctx.ServiceName != "" && !a.containerCheck() {
-		// Outside the container: route through docker compose exec
+		if ctx.Verbose {
+			ctx.Logger.Info("routing via docker compose exec %s: %s", ctx.ServiceName, cmdString)
+		}
 		cmd = exec.Command("docker", "compose", "exec", ctx.ServiceName, "sh", "-c", cmdString)
 	} else {
-		// Inside the container (or no service specified): run locally
+		if ctx.Verbose {
+			ctx.Logger.Info("run: %s", cmdString)
+		}
 		cmd = exec.Command("sh", "-c", cmdString)
 	}
 
