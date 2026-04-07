@@ -5,6 +5,7 @@ import (
 	"os"
 	"os/exec"
 
+	"github.com/mattn/go-isatty"
 	"github.com/project-actions/runner/internal/actions"
 	"github.com/project-actions/runner/internal/docker"
 )
@@ -38,7 +39,12 @@ func (a *RunAction) Execute(ctx *actions.ExecutionContext, config map[string]int
 		if ctx.Verbose {
 			ctx.Logger.Info("routing via docker compose exec %s: %s", ctx.ServiceName, cmdString)
 		}
-		cmd = exec.Command("docker", "compose", "exec", ctx.ServiceName, "sh", "-c", cmdString)
+		args := []string{"compose", "exec"}
+		if isatty.IsTerminal(os.Stdout.Fd()) || isatty.IsCygwinTerminal(os.Stdout.Fd()) {
+			args = append(args, "-it")
+		}
+		args = append(args, ctx.ServiceName, "sh", "-c", cmdString)
+		cmd = exec.Command("docker", args...)
 	} else {
 		if ctx.Verbose {
 			ctx.Logger.Info("run: %s", cmdString)
