@@ -1,4 +1,4 @@
-package builtin
+package primitives
 
 import (
 	"fmt"
@@ -16,19 +16,14 @@ func (a *CheckForAction) Execute(ctx *actions.ExecutionContext, config map[strin
 	if !ok {
 		return fmt.Errorf("check-for action requires a tool name")
 	}
-
 	toolStr := fmt.Sprint(tool)
-
-	// Check if the tool exists in PATH
 	_, err := exec.LookPath(toolStr)
 	if err != nil {
-		// Tool not found - check for custom error message
 		if msg, ok := config["if-missing"]; ok {
 			ctx.Logger.Error("%v", msg)
 		}
 		return fmt.Errorf("required tool not found: %s", toolStr)
 	}
-
 	ctx.Logger.Info("✓ Found: %s", toolStr)
 	return nil
 }

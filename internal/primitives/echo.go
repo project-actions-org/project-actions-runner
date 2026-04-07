@@ -1,4 +1,4 @@
-package builtin
+package primitives
 
 import (
 	"fmt"
@@ -15,13 +15,8 @@ func (a *EchoAction) Execute(ctx *actions.ExecutionContext, config map[string]in
 	if !ok {
 		return fmt.Errorf("echo action requires a message")
 	}
-
-	// Convert to string
 	msgStr := fmt.Sprint(msg)
-
-	// Print the message
 	fmt.Println(msgStr)
-
 	return nil
 }
 

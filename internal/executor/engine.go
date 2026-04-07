@@ -7,11 +7,12 @@ import (
 	"strings"
 
 	"github.com/project-actions/runner/internal/actions"
-	"github.com/project-actions/runner/internal/actions/builtin"
+	"github.com/project-actions/runner/internal/actions/compose"
 	"github.com/project-actions/runner/internal/config"
 	"github.com/project-actions/runner/internal/external"
 	"github.com/project-actions/runner/internal/logger"
 	"github.com/project-actions/runner/internal/parser"
+	"github.com/project-actions/runner/internal/primitives"
 )
 
 // Engine orchestrates command execution
@@ -29,18 +30,17 @@ func NewEngine(cfg *config.Config, log *logger.Logger) *Engine {
 		config:         cfg,
 	}
 
-	// Register built-in actions
-	engine.actionRegistry.Register("echo", &builtin.EchoAction{})
-	engine.actionRegistry.Register("run", &builtin.RunAction{})
-	engine.actionRegistry.Register("check-for", &builtin.CheckForAction{})
-	// Pass the engine itself so command action can execute other commands
-	engine.actionRegistry.Register("command", builtin.NewCommandAction(engine))
+	// Register primitives
+	engine.actionRegistry.Register("echo", &primitives.EchoAction{})
+	engine.actionRegistry.Register("run", &primitives.RunAction{})
+	engine.actionRegistry.Register("check-for", &primitives.CheckForAction{})
+	engine.actionRegistry.Register("command", primitives.NewCommandAction(engine))
 
 	// Register docker-compose actions
-	engine.actionRegistry.Register("compose-up", &builtin.ComposeUpAction{})
-	engine.actionRegistry.Register("compose-stop", &builtin.ComposeStopAction{})
-	engine.actionRegistry.Register("compose-down", &builtin.ComposeDownAction{})
-	engine.actionRegistry.Register("compose-exec", &builtin.ComposeExecAction{})
+	engine.actionRegistry.Register("compose-up", &compose.ComposeUpAction{})
+	engine.actionRegistry.Register("compose-stop", &compose.ComposeStopAction{})
+	engine.actionRegistry.Register("compose-down", &compose.ComposeDownAction{})
+	engine.actionRegistry.Register("compose-exec", &compose.ComposeExecAction{})
 
 	return engine
 }

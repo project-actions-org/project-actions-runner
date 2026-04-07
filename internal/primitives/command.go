@@ -1,4 +1,4 @@
-package builtin
+package primitives
 
 import (
 	"fmt"
@@ -18,9 +18,7 @@ type CommandExecutor interface {
 
 // NewCommandAction creates a new command action with a command executor
 func NewCommandAction(executor CommandExecutor) *CommandAction {
-	return &CommandAction{
-		commandExecutor: executor,
-	}
+	return &CommandAction{commandExecutor: executor}
 }
 
 // Execute runs another command
@@ -29,17 +27,11 @@ func (a *CommandAction) Execute(ctx *actions.ExecutionContext, config map[string
 	if !ok {
 		return fmt.Errorf("command action requires a command name")
 	}
-
 	cmdNameStr := fmt.Sprint(cmdName)
-
 	ctx.Logger.Info("→ Calling command: %s", cmdNameStr)
-
-	// Execute the command through the engine
 	if a.commandExecutor == nil {
 		return fmt.Errorf("command executor not available")
 	}
-
-	// Pass empty args - command action doesn't support passing options yet
 	return a.commandExecutor.ExecuteCommand(cmdNameStr, []string{})
 }
 
