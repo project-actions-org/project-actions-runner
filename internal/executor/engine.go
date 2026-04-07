@@ -41,6 +41,7 @@ func NewEngine(cfg *config.Config, log *logger.Logger) *Engine {
 	engine.actionRegistry.Register("compose-stop", &compose.ComposeStopAction{})
 	engine.actionRegistry.Register("compose-down", &compose.ComposeDownAction{})
 	engine.actionRegistry.Register("compose-exec", &compose.ComposeExecAction{})
+	engine.actionRegistry.Register("console", &compose.ConsoleAction{})
 
 	return engine
 }
