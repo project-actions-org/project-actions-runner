@@ -179,20 +179,16 @@ func newActionsInfoCommand(cfg *config.Config) *cobra.Command {
 
 // collectAllSources reads all command files and returns a deduplicated source map.
 func collectAllSources(cfg *config.Config) (map[string]string, error) {
-	commandNames, err := cfg.ListCommands()
+	entries, err := cfg.ListCommands()
 	if err != nil {
 		return nil, fmt.Errorf("failed to list commands: %w", err)
 	}
 
 	sources := make(map[string]string)
-	for _, name := range commandNames {
-		cmdFile, err := cfg.FindCommandFile(name)
+	for _, entry := range entries {
+		cmd, err := parser.ParseCommandFile(entry.FilePath, entry.Name)
 		if err != nil {
 			continue
-		}
-		cmd, err := parser.ParseCommandFile(cmdFile, name)
-		if err != nil {
-			return nil, fmt.Errorf("failed to parse command file %s: %w", cmdFile, err)
 		}
 		for alias, rawURL := range cmd.Sources {
 			sources[alias] = rawURL

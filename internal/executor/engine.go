@@ -54,8 +54,12 @@ func (e *Engine) ExecuteCommand(commandName string, args []string) error {
 		// List available commands for helpful error message
 		available, _ := e.config.ListCommands()
 		if len(available) > 0 {
+			names := make([]string, len(available))
+			for i, entry := range available {
+				names[i] = entry.Name
+			}
 			return fmt.Errorf("command '%s' not found\n\nAvailable commands: %s\n\nRun 'project' to see all available commands",
-				commandName, strings.Join(available, ", "))
+				commandName, strings.Join(names, ", "))
 		}
 		return fmt.Errorf("command '%s' not found: %w", commandName, err)
 	}

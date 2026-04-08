@@ -22,7 +22,7 @@ func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
 	}
 
 	// Get list of all command files
-	commandNames, err := cfg.ListCommands()
+	entries, err := cfg.ListCommands()
 	if err != nil {
 		return fmt.Errorf("failed to list commands: %w", err)
 	}
@@ -35,20 +35,13 @@ func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
 	}
 
 	var commands []cmdInfo
-	for _, name := range commandNames {
-		cmdFile, err := cfg.FindCommandFile(name)
+	for _, entry := range entries {
+		cmd, err := parser.ParseCommandFile(entry.FilePath, entry.Name)
 		if err != nil {
 			continue
 		}
-
-		cmd, err := parser.ParseCommandFile(cmdFile, name)
-		if err != nil {
-			// Skip commands that can't be parsed
-			continue
-		}
-
 		commands = append(commands, cmdInfo{
-			Name:  name,
+			Name:  entry.Name,
 			Order: cmd.Help.Order,
 			Cmd:   cmd,
 		})
@@ -107,37 +100,32 @@ func createDynamicCommand(name string, cmd *parser.Command, cfg *config.Config) 
 // validateSourceConsistency collects sources from all command files and errors
 // if the same source name is declared with different URLs or refs in different files.
 func validateSourceConsistency(cfg *config.Config) error {
-	commandNames, err := cfg.ListCommands()
+	entries, err := cfg.ListCommands()
 	if err != nil {
 		return fmt.Errorf("failed to list commands: %w", err)
 	}
 
-	// Map from source alias to "file:rawURL" for error reporting
 	type sourceEntry struct {
 		file   string
 		rawURL string
 	}
 	seen := make(map[string]sourceEntry)
 
-	for _, name := range commandNames {
-		cmdFile, err := cfg.FindCommandFile(name)
+	for _, entry := range entries {
+		cmd, err := parser.ParseCommandFile(entry.FilePath, entry.Name)
 		if err != nil {
-			continue
-		}
-		cmd, err := parser.ParseCommandFile(cmdFile, name)
-		if err != nil {
-			return fmt.Errorf("failed to parse command file %s: %w", cmdFile, err)
+			return fmt.Errorf("failed to parse command file %s: %w", entry.FilePath, err)
 		}
 		for alias, rawURL := range cmd.Sources {
 			if existing, conflict := seen[alias]; conflict {
 				if existing.rawURL != rawURL {
 					return fmt.Errorf(
 						"conflicting source %q: %s declares %q but %s declares %q — all command files must agree on the same URL and ref",
-						alias, existing.file, existing.rawURL, cmdFile, rawURL,
+						alias, existing.file, existing.rawURL, entry.FilePath, rawURL,
 					)
 				}
 			} else {
-				seen[alias] = sourceEntry{file: cmdFile, rawURL: rawURL}
+				seen[alias] = sourceEntry{file: entry.FilePath, rawURL: rawURL}
 			}
 		}
 	}
