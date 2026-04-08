@@ -33,13 +33,18 @@ usage() {
     exit 1
 }
 
-# Ad-hoc sign a binary if on macOS (required for arm64 binaries)
+# Ad-hoc sign a binary if on macOS (required for arm64 binaries).
+# Builds always write to a temp file first, then mv into place (new inode)
+# so macOS provenance metadata from prior downloads cannot linger.
 sign_if_macos() {
     local binary="$1"
     if [ "$(uname)" = "Darwin" ]; then
-        codesign --sign - "${binary}" 2>/dev/null || true
+        if ! codesign --sign - "${binary}"; then
+            echo "Warning: codesign failed for ${binary}" >&2
+        fi
     fi
 }
+
 
 # Build for current platform
 build() {

@@ -50,9 +50,14 @@ if [ ! -f "$RUNNER_PATH" ] || [ ! -x "$RUNNER_PATH" ]; then
     # Create runtime directory if it doesn't exist
     mkdir -p "${RUNTIME_DIR}"
 
-    # Download the binary
+    # Download to a temp file then move into place (new inode).
+    # Overwriting an existing file in place can preserve macOS provenance
+    # metadata from a prior download, causing Gatekeeper to kill the binary.
+    RUNNER_TMP="${RUNNER_PATH}.tmp.$$"
+
     if command -v curl > /dev/null 2>&1; then
-        if ! curl -fsSL "${DOWNLOAD_URL}" -o "${RUNNER_PATH}"; then
+        if ! curl -fsSL "${DOWNLOAD_URL}" -o "${RUNNER_TMP}"; then
+            rm -f "${RUNNER_TMP}"
             echo "Error: Failed to download runner from ${DOWNLOAD_URL}"
             echo ""
             echo "Please ensure:"
@@ -62,7 +67,8 @@ if [ ! -f "$RUNNER_PATH" ] || [ ! -x "$RUNNER_PATH" ]; then
             exit 1
         fi
     elif command -v wget > /dev/null 2>&1; then
-        if ! wget -q "${DOWNLOAD_URL}" -O "${RUNNER_PATH}"; then
+        if ! wget -q "${DOWNLOAD_URL}" -O "${RUNNER_TMP}"; then
+            rm -f "${RUNNER_TMP}"
             echo "Error: Failed to download runner from ${DOWNLOAD_URL}"
             exit 1
         fi
@@ -71,6 +77,10 @@ if [ ! -f "$RUNNER_PATH" ] || [ ! -x "$RUNNER_PATH" ]; then
         echo "Please install curl or wget and try again"
         exit 1
     fi
+
+    # Remove old inode before installing so macOS assigns fresh provenance
+    rm -f "${RUNNER_PATH}"
+    mv "${RUNNER_TMP}" "${RUNNER_PATH}"
 
     # Make it executable
     chmod +x "${RUNNER_PATH}"
