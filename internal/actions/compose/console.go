@@ -1,9 +1,11 @@
 package compose
 
 import (
+	"bytes"
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 
 	"github.com/project-actions/runner/internal/actions"
 	"github.com/project-actions/runner/internal/docker"
@@ -39,18 +41,34 @@ func (a *ConsoleAction) Execute(ctx *actions.ExecutionContext, config map[string
 	cmd := exec.Command("docker", "compose", "exec", "-it", ctx.ServiceName, shell)
 	cmd.Dir = ctx.WorkingDir
 	cmd.Stdout = os.Stdout
-	cmd.Stderr = os.Stderr
 	cmd.Stdin = os.Stdin
 
+	// With -it, the shell's stdout and stderr travel through the PTY and reach
+	// the user via cmd.Stdout. cmd.Stderr here captures only docker compose's
+	// own diagnostic messages (e.g. "Error: executing ... exit status 127"),
+	// which we suppress when the shell simply exited non-zero, but preserve for
+	// genuine docker errors (container not running, daemon unreachable, etc.).
+	var dockerStderr bytes.Buffer
+	cmd.Stderr = &dockerStderr
+
 	err := cmd.Run()
-	// An ExitError means the shell session ended with a non-zero exit code
-	// (e.g. the last command run inside was not found). That is not a runner
-	// error — only hard failures (docker not running, container not found)
-	// produce a non-ExitError and should be surfaced.
-	if _, ok := err.(*exec.ExitError); ok {
-		return nil
+	if err != nil {
+		if _, ok := err.(*exec.ExitError); ok {
+			// Suppress docker's "Error: executing ... exit status N" noise.
+			// Only surface docker stderr that looks like a real problem.
+			msg := strings.TrimSpace(dockerStderr.String())
+			if msg != "" && !strings.Contains(msg, "exit status") {
+				fmt.Fprintln(os.Stderr, msg)
+			}
+			return nil
+		}
+		// Non-exit error (e.g. docker binary not found): show stderr and propagate.
+		if msg := strings.TrimSpace(dockerStderr.String()); msg != "" {
+			fmt.Fprintln(os.Stderr, msg)
+		}
+		return err
 	}
-	return err
+	return nil
 }
 
 func (a *ConsoleAction) Validate(config map[string]interface{}) error {
