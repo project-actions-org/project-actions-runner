@@ -1,0 +1,124 @@
+name: Latest
+
+on:
+  push:
+    branches:
+      - master
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.5'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Run tests
+        run: go test -v ./...
+
+  build:
+    name: Build ${{ matrix.goos }}-${{ matrix.goarch }}
+    needs: test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        goos: [darwin, linux]
+        goarch: [amd64, arm64]
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.24.5'
+
+      - name: Cache Go modules
+        uses: actions/cache@v4
+        with:
+          path: ~/go/pkg/mod
+          key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+          restore-keys: |
+            ${{ runner.os }}-go-
+
+      - name: Build binary
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          BUILD_TIME=$(date -u +%Y%m%d%H%M)
+          LDFLAGS="-X github.com/project-actions/runner/internal/cli.Version=dev -X github.com/project-actions/runner/internal/cli.BuildTime=${BUILD_TIME} -s -w"
+
+          mkdir -p dist
+          go build -ldflags "${LDFLAGS}" -o dist/command-runner-${GOOS}-${GOARCH} ./cmd/runner
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: command-runner-${{ matrix.goos }}-${{ matrix.goarch }}
+          path: dist/command-runner-${{ matrix.goos }}-${{ matrix.goarch }}
+          if-no-files-found: error
+
+  release:
+    name: Update Latest Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Prepare release assets
+        run: |
+          mkdir -p dist
+          find artifacts -type f -name 'command-runner-*' -exec cp {} dist/ \;
+          cp templates/runner.sh dist/runner.sh
+          ls -lh dist/
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum command-runner-* runner.sh > checksums.txt
+          cat checksums.txt
+
+      - name: Delete existing latest release and tag
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release delete latest --yes 2>/dev/null || true
+          git push origin :refs/tags/latest 2>/dev/null || true
+
+      - name: Create latest release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          COMMIT=$(git rev-parse --short HEAD)
+          gh release create latest \
+            --title "Latest build (${COMMIT})" \
+            --notes "Automated build from the master branch at commit ${COMMIT}." \
+            dist/command-runner-darwin-amd64 \
+            dist/command-runner-darwin-arm64 \
+            dist/command-runner-linux-amd64 \
+            dist/command-runner-linux-arm64 \
+            dist/runner.sh \
+            dist/checksums.txt
