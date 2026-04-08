@@ -139,22 +139,119 @@ func TestListCommands(t *testing.T) {
 		CommandsDir: projectDir,
 	}
 
-	commands, err := cfg.ListCommands()
+	entries, err := cfg.ListCommands()
 	if err != nil {
 		t.Fatalf("ListCommands() error = %v", err)
 	}
 
-	// Should find 3 YAML files (test, setup, deploy)
-	if len(commands) != 3 {
-		t.Errorf("ListCommands() found %d commands, want 3", len(commands))
+	if len(entries) != 3 {
+		t.Errorf("ListCommands() found %d commands, want 3", len(entries))
 	}
 
-	// Check that only YAML files are included
 	expected := map[string]bool{"test": true, "setup": true, "deploy": true}
-	for _, cmd := range commands {
-		if !expected[cmd] {
-			t.Errorf("Unexpected command: %s", cmd)
+	for _, e := range entries {
+		if !expected[e.Name] {
+			t.Errorf("Unexpected command: %s", e.Name)
 		}
+	}
+}
+
+func TestListCommands_Recursive(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, ".project")
+	buildDir := filepath.Join(projectDir, "build")
+	dockerDir := filepath.Join(projectDir, "build", "docker")
+	if err := os.MkdirAll(dockerDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+
+	files := map[string]string{
+		filepath.Join(projectDir, "setup.yaml"):  "help:\n  short: Setup",
+		filepath.Join(buildDir, "all.yaml"):      "help:\n  short: Build all",
+		filepath.Join(buildDir, "release.yaml"):  "help:\n  short: Build release",
+		filepath.Join(dockerDir, "image.yaml"):   "help:\n  short: Build image",
+		filepath.Join(projectDir, "readme.txt"):  "not a command",
+	}
+	for path, content := range files {
+		if err := os.WriteFile(path, []byte(content), 0644); err != nil {
+			t.Fatal(err)
+		}
+	}
+
+	cfg := &Config{
+		ProjectRoot: tmpDir,
+		ProjectDir:  projectDir,
+		CommandsDir: projectDir,
+	}
+
+	entries, err := cfg.ListCommands()
+	if err != nil {
+		t.Fatalf("ListCommands() error = %v", err)
+	}
+
+	byName := make(map[string]CommandEntry)
+	for _, e := range entries {
+		byName[e.Name] = e
+	}
+
+	if len(entries) != 4 {
+		t.Errorf("want 4 entries, got %d: %v", len(entries), entries)
+	}
+
+	e, ok := byName["setup"]
+	if !ok {
+		t.Fatal("missing 'setup'")
+	}
+	if len(e.Namespace) != 0 {
+		t.Errorf("setup namespace want [], got %v", e.Namespace)
+	}
+
+	e, ok = byName["build:all"]
+	if !ok {
+		t.Fatal("missing 'build:all'")
+	}
+	if len(e.Namespace) != 1 || e.Namespace[0] != "build" {
+		t.Errorf("build:all namespace want [build], got %v", e.Namespace)
+	}
+
+	e, ok = byName["build:docker:image"]
+	if !ok {
+		t.Fatal("missing 'build:docker:image'")
+	}
+	if len(e.Namespace) != 2 || e.Namespace[0] != "build" || e.Namespace[1] != "docker" {
+		t.Errorf("build:docker:image namespace want [build docker], got %v", e.Namespace)
+	}
+}
+
+func TestFindCommandFile_Namespaced(t *testing.T) {
+	tmpDir := t.TempDir()
+	projectDir := filepath.Join(tmpDir, ".project")
+	buildDir := filepath.Join(projectDir, "build")
+	if err := os.MkdirAll(buildDir, 0755); err != nil {
+		t.Fatal(err)
+	}
+	allPath := filepath.Join(buildDir, "all.yaml")
+	if err := os.WriteFile(allPath, []byte("help:\n  short: Build all"), 0644); err != nil {
+		t.Fatal(err)
+	}
+
+	cfg := &Config{
+		ProjectRoot: tmpDir,
+		ProjectDir:  projectDir,
+		CommandsDir: projectDir,
+	}
+
+	got, err := cfg.FindCommandFile("build:all")
+	if err != nil {
+		t.Fatalf("FindCommandFile() error = %v", err)
+	}
+	if got != allPath {
+		t.Errorf("FindCommandFile() = %v, want %v", got, allPath)
+	}
+
+	_, err = cfg.FindCommandFile("build:missing")
+	if err == nil {
+		t.Error("expected error for missing namespaced command, got nil")
 	}
 }
 

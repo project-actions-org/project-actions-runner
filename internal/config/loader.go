@@ -2,8 +2,10 @@ package config
 
 import (
 	"fmt"
+	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 // Config holds the project configuration paths
@@ -14,27 +16,28 @@ type Config struct {
 	RuntimeDir  string
 }
 
+// CommandEntry represents a discovered command file with namespace information.
+type CommandEntry struct {
+	Name      string   // "setup", "build:all", "build:docker:image"
+	FilePath  string   // absolute path to the YAML file
+	Namespace []string // [] for root, ["build"] or ["build","docker"] for nested
+}
+
 // LoadConfig finds and loads the .project directory configuration
 func LoadConfig() (*Config, error) {
-	// Start from current directory and walk up to find .project
 	dir, err := os.Getwd()
 	if err != nil {
 		return nil, fmt.Errorf("failed to get current directory: %w", err)
 	}
 
-	// Walk up the directory tree
 	for {
 		projectDir := filepath.Join(dir, ".project")
 		if _, err := os.Stat(projectDir); err == nil {
-			// Found .project directory
 			config := &Config{
 				ProjectRoot: dir,
 				ProjectDir:  projectDir,
 			}
 
-			// Check for commands in both locations:
-			// 1. .project/commands/ (preferred, nested structure)
-			// 2. .project/ (flat structure, for backwards compatibility)
 			commandsDir := filepath.Join(projectDir, "commands")
 			if _, err := os.Stat(commandsDir); err == nil {
 				config.CommandsDir = commandsDir
@@ -43,14 +46,11 @@ func LoadConfig() (*Config, error) {
 			}
 
 			config.RuntimeDir = filepath.Join(projectDir, ".runtime")
-
 			return config, nil
 		}
 
-		// Move up one directory
 		parent := filepath.Dir(dir)
 		if parent == dir {
-			// Reached root without finding .project
 			break
 		}
 		dir = parent
@@ -59,16 +59,18 @@ func LoadConfig() (*Config, error) {
 	return nil, fmt.Errorf(".project directory not found in current directory or any parent directory")
 }
 
-// FindCommandFile locates a command YAML file by name
+// FindCommandFile locates a command YAML file by name.
+// Accepts colon-separated namespaced names: "build:all" resolves to build/all.yaml.
 func (c *Config) FindCommandFile(commandName string) (string, error) {
-	// Try with .yaml extension
-	yamlPath := filepath.Join(c.CommandsDir, commandName+".yaml")
+	parts := strings.Split(commandName, ":")
+	subPath := filepath.Join(parts...)
+
+	yamlPath := filepath.Join(c.CommandsDir, subPath+".yaml")
 	if _, err := os.Stat(yamlPath); err == nil {
 		return yamlPath, nil
 	}
 
-	// Try with .yml extension
-	ymlPath := filepath.Join(c.CommandsDir, commandName+".yml")
+	ymlPath := filepath.Join(c.CommandsDir, subPath+".yml")
 	if _, err := os.Stat(ymlPath); err == nil {
 		return ymlPath, nil
 	}
@@ -76,27 +78,55 @@ func (c *Config) FindCommandFile(commandName string) (string, error) {
 	return "", fmt.Errorf("command '%s' not found in %s", commandName, c.CommandsDir)
 }
 
-// ListCommands returns all available command files
-func (c *Config) ListCommands() ([]string, error) {
-	entries, err := os.ReadDir(c.CommandsDir)
+// ListCommands recursively discovers all YAML command files under CommandsDir.
+// Files in subdirectories become namespaced commands: build/all.yaml -> "build:all".
+func (c *Config) ListCommands() ([]CommandEntry, error) {
+	var entries []CommandEntry
+
+	err := filepath.WalkDir(c.CommandsDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+
+		ext := filepath.Ext(d.Name())
+		if ext != ".yaml" && ext != ".yml" {
+			return nil
+		}
+
+		rel, err := filepath.Rel(c.CommandsDir, path)
+		if err != nil {
+			return err
+		}
+
+		// Convert OS path separators to forward slash for consistent splitting
+		rel = filepath.ToSlash(rel)
+		parts := strings.Split(rel, "/")
+
+		// Strip extension from the last segment (the filename)
+		last := parts[len(parts)-1]
+		parts[len(parts)-1] = last[:len(last)-len(ext)]
+
+		name := strings.Join(parts, ":")
+
+		var namespace []string
+		if len(parts) > 1 {
+			namespace = make([]string, len(parts)-1)
+			copy(namespace, parts[:len(parts)-1])
+		}
+
+		entries = append(entries, CommandEntry{
+			Name:      name,
+			FilePath:  path,
+			Namespace: namespace,
+		})
+		return nil
+	})
 	if err != nil {
-		return nil, fmt.Errorf("failed to read commands directory: %w", err)
+		return nil, fmt.Errorf("failed to scan commands directory: %w", err)
 	}
 
-	var commands []string
-	for _, entry := range entries {
-		if entry.IsDir() {
-			continue
-		}
-
-		name := entry.Name()
-		// Check for .yaml or .yml extension
-		if filepath.Ext(name) == ".yaml" || filepath.Ext(name) == ".yml" {
-			// Strip extension to get command name
-			cmdName := name[:len(name)-len(filepath.Ext(name))]
-			commands = append(commands, cmdName)
-		}
-	}
-
-	return commands, nil
+	return entries, nil
 }
