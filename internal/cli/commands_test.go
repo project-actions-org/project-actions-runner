@@ -43,7 +43,11 @@ steps: []
 		RuntimeDir:  filepath.Join(tmpDir, ".project", ".runtime"),
 	}
 
-	err := validateSourceConsistency(cfg)
+	entries, err := cfg.ListCommands()
+	if err != nil {
+		t.Fatalf("ListCommands() error = %v", err)
+	}
+	err = validateSourceConsistency(entries)
 	if err == nil {
 		t.Error("expected conflict error, got nil")
 	} else if !strings.Contains(err.Error(), "aws") {
@@ -85,7 +89,11 @@ steps: []
 		RuntimeDir:  filepath.Join(tmpDir, ".project", ".runtime"),
 	}
 
-	if err := validateSourceConsistency(cfg); err != nil {
+	entries, listErr := cfg.ListCommands()
+	if listErr != nil {
+		t.Fatalf("ListCommands() error = %v", listErr)
+	}
+	if err := validateSourceConsistency(entries); err != nil {
 		t.Errorf("unexpected error: %v", err)
 	}
 }
@@ -158,7 +166,11 @@ steps: []
 		RuntimeDir:  filepath.Join(tmpDir, ".project", ".runtime"),
 	}
 
-	if err := validateSourceConsistency(cfg); err != nil {
+	entries, listErr := cfg.ListCommands()
+	if listErr != nil {
+		t.Fatalf("ListCommands() error = %v", listErr)
+	}
+	if err := validateSourceConsistency(entries); err != nil {
 		t.Errorf("unexpected error for command with no sources: %v", err)
 	}
 }

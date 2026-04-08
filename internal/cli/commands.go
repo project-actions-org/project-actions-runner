@@ -25,13 +25,13 @@ func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
 	orderedCommands = nil
 	namespaceCommands = make(map[string][]*cobra.Command)
 
-	if err := validateSourceConsistency(cfg); err != nil {
-		return err
-	}
-
 	entries, err := cfg.ListCommands()
 	if err != nil {
 		return fmt.Errorf("failed to list commands: %w", err)
+	}
+
+	if err := validateSourceConsistency(entries); err != nil {
+		return err
 	}
 
 	type cmdInfo struct {
@@ -135,7 +135,7 @@ func createNamespaceCommand(nsKey string) *cobra.Command {
 		Short:              nsKey + " commands",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			printNamespaceHelp(nsKey, cmd.OutOrStdout())
+			printNamespaceHelp(cmd.CommandPath(), nsKey, cmd.OutOrStdout())
 			return nil
 		},
 	}
@@ -147,12 +147,7 @@ func createNamespaceCommand(nsKey string) *cobra.Command {
 
 // validateSourceConsistency collects sources from all command files and errors
 // if the same source name is declared with different URLs or refs in different files.
-func validateSourceConsistency(cfg *config.Config) error {
-	entries, err := cfg.ListCommands()
-	if err != nil {
-		return fmt.Errorf("failed to list commands: %w", err)
-	}
-
+func validateSourceConsistency(entries []config.CommandEntry) error {
 	type sourceEntry struct {
 		file   string
 		rawURL string

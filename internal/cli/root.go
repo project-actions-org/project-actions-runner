@@ -126,7 +126,7 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 // printNamespaceHelp prints a scoped help view for a synthetic namespace command.
 // It shows all namespace sections whose key starts with the given namespace prefix.
 // namespace must be a non-empty colon-separated string (e.g. "build" or "build:docker").
-func printNamespaceHelp(namespace string, w io.Writer) {
+func printNamespaceHelp(commandPath string, namespace string, w io.Writer) {
 	nsParts := strings.Split(namespace, ":")
 
 	var relevantKeys []string
@@ -148,7 +148,7 @@ func printNamespaceHelp(namespace string, w io.Writer) {
 	}
 	sort.Strings(relevantKeys)
 
-	fmt.Fprintf(w, "Usage:\n  project %s:<command>\n\n", namespace)
+	fmt.Fprintf(w, "Usage:\n  %s:<command>\n\n", commandPath)
 	for _, k := range relevantKeys {
 		fmt.Fprintf(w, "[%s]\n", k)
 		for _, c := range namespaceCommands[k] {
