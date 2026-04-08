@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"sort"
+	"strings"
 
 	"github.com/project-actions/runner/internal/config"
 	"github.com/project-actions/runner/internal/executor"
@@ -14,22 +15,27 @@ import (
 // orderedCommands stores commands in registration order
 var orderedCommands []*cobra.Command
 
+// namespaceCommands maps namespace key (e.g. "build", "build:docker") to its
+// commands in display order. Populated during RegisterProjectCommands.
+var namespaceCommands map[string][]*cobra.Command
+
 // RegisterProjectCommands dynamically registers all YAML commands as Cobra subcommands
 func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
-	// Validate that sources are consistent across all command files
+	// Reset package-level state (safe: called once per Execute)
+	orderedCommands = nil
+	namespaceCommands = make(map[string][]*cobra.Command)
+
 	if err := validateSourceConsistency(cfg); err != nil {
 		return err
 	}
 
-	// Get list of all command files
 	entries, err := cfg.ListCommands()
 	if err != nil {
 		return fmt.Errorf("failed to list commands: %w", err)
 	}
 
-	// Sort commands by order (if available) or alphabetically
 	type cmdInfo struct {
-		Name  string
+		Entry config.CommandEntry
 		Order int
 		Cmd   *parser.Command
 	}
@@ -41,26 +47,50 @@ func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
 			continue
 		}
 		commands = append(commands, cmdInfo{
-			Name:  entry.Name,
+			Entry: entry,
 			Order: cmd.Help.Order,
 			Cmd:   cmd,
 		})
 	}
 
-	// Sort by order, then alphabetically
 	sort.Slice(commands, func(i, j int) bool {
 		if commands[i].Order != commands[j].Order {
 			return commands[i].Order < commands[j].Order
 		}
-		return commands[i].Name < commands[j].Name
+		return commands[i].Entry.Name < commands[j].Entry.Name
 	})
 
-	// Register each command in sorted order
-	for _, cmdInfo := range commands {
-		cobraCmd := createDynamicCommand(cmdInfo.Name, cmdInfo.Cmd, cfg)
+	// Register real commands; track which names are occupied
+	registeredNames := make(map[string]bool)
+	for _, info := range commands {
+		cobraCmd := createDynamicCommand(info.Entry.Name, info.Cmd, cfg)
 		rootCmd.AddCommand(cobraCmd)
-		// Store in ordered list for help display
-		orderedCommands = append(orderedCommands, cobraCmd)
+		registeredNames[info.Entry.Name] = true
+
+		if len(info.Entry.Namespace) == 0 {
+			orderedCommands = append(orderedCommands, cobraCmd)
+		} else {
+			nsKey := strings.Join(info.Entry.Namespace, ":")
+			namespaceCommands[nsKey] = append(namespaceCommands[nsKey], cobraCmd)
+		}
+	}
+
+	// Collect all unique namespace paths that need synthetic commands.
+	// For build:docker:image we need synthetics for "build" and "build:docker".
+	syntheticNeeded := make(map[string]bool)
+	for _, info := range commands {
+		for depth := 1; depth <= len(info.Entry.Namespace); depth++ {
+			nsKey := strings.Join(info.Entry.Namespace[:depth], ":")
+			syntheticNeeded[nsKey] = true
+		}
+	}
+
+	// Register synthetic namespace commands where no real command exists
+	for nsKey := range syntheticNeeded {
+		if registeredNames[nsKey] {
+			continue
+		}
+		rootCmd.AddCommand(createNamespaceCommand(nsKey))
 	}
 
 	return nil
@@ -95,6 +125,25 @@ func createDynamicCommand(name string, cmd *parser.Command, cfg *config.Config) 
 	}
 
 	return cobraCmd
+}
+
+// createNamespaceCommand creates a synthetic Cobra command for a namespace
+// directory that has no matching YAML file. Running it prints scoped help.
+func createNamespaceCommand(nsKey string) *cobra.Command {
+	capturedKey := nsKey
+	cmd := &cobra.Command{
+		Use:                nsKey + " [options...]",
+		Short:              nsKey + " commands",
+		DisableFlagParsing: true,
+		RunE: func(cmd *cobra.Command, args []string) error {
+			printNamespaceHelp(capturedKey, cmd.OutOrStdout())
+			return nil
+		},
+	}
+	cmd.Annotations = map[string]string{
+		"project-namespace": "true",
+	}
+	return cmd
 }
 
 // validateSourceConsistency collects sources from all command files and errors

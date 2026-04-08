@@ -2,7 +2,10 @@ package cli
 
 import (
 	"fmt"
+	"io"
 	"os"
+	"sort"
+	"strings"
 
 	"github.com/project-actions/runner/internal/config"
 	"github.com/spf13/cobra"
@@ -54,59 +57,104 @@ func Execute() error {
 	return rootCmd.Execute()
 }
 
-// customHelpFunc is a custom help function that preserves command ordering
 func customHelpFunc(cmd *cobra.Command, args []string) {
-	// Use the ordered commands list that was built during registration
-	// This preserves the YAML order field
-	projectCmds := orderedCommands
+	out := cmd.OutOrStdout()
 
-	// Get global commands (completion, help, etc)
+	// Separate global commands from project/namespace commands.
+	// Synthetic namespace commands are excluded from all sections.
 	var globalCmds []*cobra.Command
 	for _, c := range cmd.Commands() {
-		if c.Annotations == nil || c.Annotations["project-command"] != "true" {
-			if c.IsAvailableCommand() || c.Name() == "help" {
-				globalCmds = append(globalCmds, c)
+		ann := c.Annotations
+		if ann != nil && (ann["project-command"] == "true" || ann["project-namespace"] == "true") {
+			continue
+		}
+		if c.IsAvailableCommand() || c.Name() == "help" {
+			globalCmds = append(globalCmds, c)
+		}
+	}
+
+	// Namespace sections sorted alphabetically by key
+	var nsKeys []string
+	for k := range namespaceCommands {
+		nsKeys = append(nsKeys, k)
+	}
+	sort.Strings(nsKeys)
+
+	fmt.Fprintf(out, "Project Actions v%s\n\n", GetVersion())
+	fmt.Fprintf(out, "Usage:\n")
+	if cmd.Runnable() {
+		fmt.Fprintf(out, "  %s\n", cmd.UseLine())
+	}
+	if cmd.HasAvailableSubCommands() {
+		fmt.Fprintf(out, "  %s [command]\n", cmd.CommandPath())
+	}
+	fmt.Fprintf(out, "\n")
+
+	if len(orderedCommands) > 0 {
+		fmt.Fprintf(out, "Available Commands:\n")
+		for _, c := range orderedCommands {
+			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+		}
+		fmt.Fprintf(out, "\n")
+	}
+
+	for _, ns := range nsKeys {
+		fmt.Fprintf(out, "[%s]\n", ns)
+		for _, c := range namespaceCommands[ns] {
+			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+		}
+		fmt.Fprintf(out, "\n")
+	}
+
+	if len(globalCmds) > 0 {
+		fmt.Fprintf(out, "Global Commands:\n")
+		for _, c := range globalCmds {
+			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+		}
+		fmt.Fprintf(out, "\n")
+	}
+
+	if cmd.HasAvailableLocalFlags() {
+		fmt.Fprintf(out, "Flags:\n")
+		fmt.Fprintf(out, "%s\n", cmd.LocalFlags().FlagUsages())
+	}
+
+	if cmd.HasAvailableSubCommands() {
+		fmt.Fprintf(out, "Use \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
+	}
+}
+
+// printNamespaceHelp prints a scoped help view for a synthetic namespace command.
+// It shows all namespace sections whose key starts with the given namespace prefix.
+func printNamespaceHelp(namespace string, w io.Writer) {
+	nsParts := strings.Split(namespace, ":")
+
+	var relevantKeys []string
+	for k := range namespaceCommands {
+		kParts := strings.Split(k, ":")
+		if len(kParts) < len(nsParts) {
+			continue
+		}
+		match := true
+		for i, p := range nsParts {
+			if kParts[i] != p {
+				match = false
+				break
 			}
 		}
-	}
-
-	// Print custom help
-	fmt.Fprintf(cmd.OutOrStdout(), "Project Actions v%s\n\n", GetVersion())
-	fmt.Fprintf(cmd.OutOrStdout(), "Usage:\n")
-	if cmd.Runnable() {
-		fmt.Fprintf(cmd.OutOrStdout(), "  %s\n", cmd.UseLine())
-	}
-	if cmd.HasAvailableSubCommands() {
-		fmt.Fprintf(cmd.OutOrStdout(), "  %s [command]\n", cmd.CommandPath())
-	}
-	fmt.Fprintf(cmd.OutOrStdout(), "\n")
-
-	// Print project commands
-	if len(projectCmds) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "Available Commands:\n")
-		for _, c := range projectCmds {
-			fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %s\n", c.Name(), c.Short)
+		if match {
+			relevantKeys = append(relevantKeys, k)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "\n")
 	}
+	sort.Strings(relevantKeys)
 
-	// Print global commands
-	if len(globalCmds) > 0 {
-		fmt.Fprintf(cmd.OutOrStdout(), "Global Commands:\n")
-		for _, c := range globalCmds {
-			fmt.Fprintf(cmd.OutOrStdout(), "  %-20s %s\n", c.Name(), c.Short)
+	fmt.Fprintf(w, "Usage:\n  project %s:<command>\n\n", namespace)
+	for _, k := range relevantKeys {
+		fmt.Fprintf(w, "[%s]\n", k)
+		for _, c := range namespaceCommands[k] {
+			fmt.Fprintf(w, "  %-20s %s\n", c.Name(), c.Short)
 		}
-		fmt.Fprintf(cmd.OutOrStdout(), "\n")
-	}
-
-	// Print flags
-	if cmd.HasAvailableLocalFlags() {
-		fmt.Fprintf(cmd.OutOrStdout(), "Flags:\n")
-		fmt.Fprintf(cmd.OutOrStdout(), "%s\n", cmd.LocalFlags().FlagUsages())
-	}
-
-	if cmd.HasAvailableSubCommands() {
-		fmt.Fprintf(cmd.OutOrStdout(), "Use \"%s [command] --help\" for more information about a command.\n", cmd.CommandPath())
+		fmt.Fprintf(w, "\n")
 	}
 }
 
