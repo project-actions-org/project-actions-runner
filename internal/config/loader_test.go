@@ -213,6 +213,9 @@ func TestListCommands_Recursive(t *testing.T) {
 	if len(e.Namespace) != 1 || e.Namespace[0] != "build" {
 		t.Errorf("build:all namespace want [build], got %v", e.Namespace)
 	}
+	if e.FilePath != filepath.Join(buildDir, "all.yaml") {
+		t.Errorf("build:all FilePath = %v, want %v", e.FilePath, filepath.Join(buildDir, "all.yaml"))
+	}
 
 	e, ok = byName["build:docker:image"]
 	if !ok {
@@ -220,6 +223,9 @@ func TestListCommands_Recursive(t *testing.T) {
 	}
 	if len(e.Namespace) != 2 || e.Namespace[0] != "build" || e.Namespace[1] != "docker" {
 		t.Errorf("build:docker:image namespace want [build docker], got %v", e.Namespace)
+	}
+	if e.FilePath != filepath.Join(dockerDir, "image.yaml") {
+		t.Errorf("build:docker:image FilePath = %v, want %v", e.FilePath, filepath.Join(dockerDir, "image.yaml"))
 	}
 }
 
