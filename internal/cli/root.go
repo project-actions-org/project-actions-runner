@@ -47,8 +47,7 @@ func Execute() error {
 	rootCmd.AddCommand(newActionsCommand(cfg))
 	rootCmd.AddCommand(newInitCommand(cfg))
 
-	// Customize help template
-	rootCmd.SetHelpTemplate(helpTemplate)
+	// Customize usage template (used for error output)
 	rootCmd.SetUsageTemplate(usageTemplate)
 
 	// Set custom help function to preserve command order
@@ -126,6 +125,7 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 
 // printNamespaceHelp prints a scoped help view for a synthetic namespace command.
 // It shows all namespace sections whose key starts with the given namespace prefix.
+// namespace must be a non-empty colon-separated string (e.g. "build" or "build:docker").
 func printNamespaceHelp(namespace string, w io.Writer) {
 	nsParts := strings.Split(namespace, ":")
 
@@ -157,36 +157,6 @@ func printNamespaceHelp(namespace string, w io.Writer) {
 		fmt.Fprintf(w, "\n")
 	}
 }
-
-const helpTemplate = `Project Actions v{{.Version}}
-
-Usage:{{if .Runnable}}
-  {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}
-  {{.CommandPath}} [command]{{end}}{{if gt (len .Aliases) 0}}
-
-Aliases:
-  {{.NameAndAliases}}{{end}}{{if .HasExample}}
-
-Examples:
-{{.Example}}{{end}}{{if .HasAvailableSubCommands}}
-
-Available Commands:{{range .Commands}}{{if and (or .IsAvailableCommand (eq .Name "help")) .Annotations}}{{if index .Annotations "project-command"}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}
-
-Global Commands:{{range .Commands}}{{if and (or .IsAvailableCommand (eq .Name "help")) (not (index .Annotations "project-command"))}}
-  {{rpad .Name .NamePadding }} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableLocalFlags}}
-
-Flags:
-{{.LocalFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasAvailableInheritedFlags}}
-
-Global Flags:
-{{.InheritedFlags.FlagUsages | trimTrailingWhitespaces}}{{end}}{{if .HasHelpSubCommands}}
-
-Additional help topics:{{range .Commands}}{{if .IsAdditionalHelpTopicCommand}}
-  {{rpad .CommandPath .CommandPathPadding}} {{.Short}}{{end}}{{end}}{{end}}{{if .HasAvailableSubCommands}}
-
-Use "{{.CommandPath}} [command] --help" for more information about a command.{{end}}
-`
 
 const usageTemplate = `Usage:{{if .Runnable}}
   {{.UseLine}}{{end}}{{if .HasAvailableSubCommands}}

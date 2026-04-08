@@ -130,13 +130,12 @@ func createDynamicCommand(name string, cmd *parser.Command, cfg *config.Config) 
 // createNamespaceCommand creates a synthetic Cobra command for a namespace
 // directory that has no matching YAML file. Running it prints scoped help.
 func createNamespaceCommand(nsKey string) *cobra.Command {
-	capturedKey := nsKey
 	cmd := &cobra.Command{
 		Use:                nsKey + " [options...]",
 		Short:              nsKey + " commands",
 		DisableFlagParsing: true,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			printNamespaceHelp(capturedKey, cmd.OutOrStdout())
+			printNamespaceHelp(nsKey, cmd.OutOrStdout())
 			return nil
 		},
 	}
