@@ -29,7 +29,7 @@ func TestInterpolateString(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := interpolateString(tt.input, tt.args, nil)
+			got, err := interpolateString(tt.input, tt.args, nil, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpolateString() error = %v, wantErr %v", err, tt.wantErr)
 				return
@@ -50,20 +50,20 @@ func TestInterpolateString(t *testing.T) {
 func TestInterpolateConfig(t *testing.T) {
 	t.Run("interpolates top-level string value", func(t *testing.T) {
 		config := map[string]interface{}{"run": "echo <args>"}
-		got, err := interpolateConfig(config, []string{"hello"}, nil)
+		got, err := interpolateConfig(config, []string{"hello"}, nil, nil)
 		if err != nil { t.Fatalf("unexpected error: %v", err) }
 		if got["run"] != "echo hello" { t.Errorf("got %q, want %q", got["run"], "echo hello") }
 	})
 	t.Run("interpolates nested map values", func(t *testing.T) {
 		config := map[string]interface{}{"with": map[string]interface{}{"command": "php <args.0>"}}
-		got, err := interpolateConfig(config, []string{"artisan"}, nil)
+		got, err := interpolateConfig(config, []string{"artisan"}, nil, nil)
 		if err != nil { t.Fatalf("unexpected error: %v", err) }
 		nested := got["with"].(map[string]interface{})
 		if nested["command"] != "php artisan" { t.Errorf("got %q, want %q", nested["command"], "php artisan") }
 	})
 	t.Run("interpolates slice of strings", func(t *testing.T) {
 		config := map[string]interface{}{"cmds": []interface{}{"echo <args.0>", "echo <args.1>"}}
-		got, err := interpolateConfig(config, []string{"foo", "bar"}, nil)
+		got, err := interpolateConfig(config, []string{"foo", "bar"}, nil, nil)
 		if err != nil { t.Fatalf("unexpected error: %v", err) }
 		cmds := got["cmds"].([]interface{})
 		if cmds[0] != "echo foo" { t.Errorf("cmds[0] = %q, want %q", cmds[0], "echo foo") }
@@ -75,7 +75,7 @@ func TestInterpolateConfig(t *testing.T) {
 				map[string]interface{}{"cmd": "echo <args.0>"},
 			},
 		}
-		got, err := interpolateConfig(config, []string{"hello"}, nil)
+		got, err := interpolateConfig(config, []string{"hello"}, nil, nil)
 		if err != nil {
 			t.Fatalf("unexpected error: %v", err)
 		}
@@ -87,18 +87,18 @@ func TestInterpolateConfig(t *testing.T) {
 	})
 	t.Run("leaves non-string values unchanged", func(t *testing.T) {
 		config := map[string]interface{}{"count": 42, "flag": true}
-		got, err := interpolateConfig(config, []string{}, nil)
+		got, err := interpolateConfig(config, []string{}, nil, nil)
 		if err != nil { t.Fatalf("unexpected error: %v", err) }
 		if got["count"] != 42 { t.Errorf("count changed: got %v", got["count"]) }
 		if got["flag"] != true { t.Errorf("flag changed: got %v", got["flag"]) }
 	})
 	t.Run("returns error on unresolvable token", func(t *testing.T) {
 		config := map[string]interface{}{"run": "<args>"}
-		_, err := interpolateConfig(config, []string{}, nil)
+		_, err := interpolateConfig(config, []string{}, nil, nil)
 		if err == nil { t.Error("expected error, got nil") }
 	})
 	t.Run("empty config returns empty map", func(t *testing.T) {
-		got, err := interpolateConfig(map[string]interface{}{}, []string{}, nil)
+		got, err := interpolateConfig(map[string]interface{}{}, []string{}, nil, nil)
 		if err != nil { t.Fatalf("unexpected error: %v", err) }
 		if len(got) != 0 { t.Errorf("expected empty map, got %v", got) }
 	})
@@ -163,7 +163,7 @@ func TestInterpolateStringLoopVars(t *testing.T) {
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got, err := interpolateString(tt.input, nil, tt.loopVars)
+			got, err := interpolateString(tt.input, nil, tt.loopVars, nil)
 			if (err != nil) != tt.wantErr {
 				t.Errorf("interpolateString() error = %v, wantErr %v", err, tt.wantErr)
 				return

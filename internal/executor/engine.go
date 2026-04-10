@@ -82,12 +82,24 @@ func (e *Engine) ExecuteCommand(commandName string, args []string) error {
 		verbose = true
 	}
 
+	// Bind positional args to declared param names
+	var namedArgs map[string]string
+	if len(cmd.Params) > 0 {
+		namedArgs = make(map[string]string, len(cmd.Params))
+		for i, p := range cmd.Params {
+			if i < len(positionalArgs) {
+				namedArgs[p.Name] = positionalArgs[i]
+			}
+		}
+	}
+
 	// Create execution context
 	ctx := &actions.ExecutionContext{
 		WorkingDir:    e.config.ProjectRoot,
 		Environment:   make(map[string]string),
 		Options:       options,
 		Args:          positionalArgs,
+		NamedArgs:     namedArgs,
 		ContainerMode: false,
 		ServiceName:   "",
 		Logger:        e.logger,
@@ -168,7 +180,7 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 	var interpolatedConfig map[string]interface{}
 	if step.Config != nil {
 		var err error
-		interpolatedConfig, err = interpolateConfig(step.Config, ctx.Args, ctx.LoopVars)
+		interpolatedConfig, err = interpolateConfig(step.Config, ctx.Args, ctx.LoopVars, ctx.NamedArgs)
 		if err != nil {
 			return fmt.Errorf("argument interpolation failed: %w", err)
 		}

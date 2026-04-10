@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-var argsPattern = regexp.MustCompile(`<args(?:\.\d+|\.length)?>`)
+var argsPattern = regexp.MustCompile(`<args(?:\.\d+|\.length|\.([a-zA-Z_][a-zA-Z0-9_]*))?>`)
 var loopVarPattern = regexp.MustCompile(`<([a-zA-Z_][a-zA-Z0-9_]*)(?:\.([a-zA-Z0-9_-]+))?>`)
 
-func interpolateString(s string, args []string, loopVars map[string]interface{}) (string, error) {
-	// Step 1: replace <args>, <args.N>, <args.length> tokens
+func interpolateString(s string, args []string, loopVars map[string]interface{}, namedArgs map[string]string) (string, error) {
+	// Step 1: replace <args>, <args.N>, <args.length>, <args.name> tokens
 	var firstErr error
 	result := argsPattern.ReplaceAllStringFunc(s, func(token string) string {
 		if firstErr != nil {
@@ -28,6 +28,18 @@ func interpolateString(s string, args []string, loopVars map[string]interface{})
 		suffix := inner[len("args"):]
 		if suffix == ".length" {
 			return strconv.Itoa(len(args))
+		}
+		// Named arg: <args.name>
+		if len(suffix) > 1 && suffix[0] == '.' {
+			name := suffix[1:]
+			if _, isDigit := strconv.Atoi(name); isDigit != nil {
+				// Not a number — look up by name
+				if val, ok := namedArgs[name]; ok {
+					return val
+				}
+				firstErr = fmt.Errorf("argument <args.%s> required but param %q not declared or not provided", name, name)
+				return token
+			}
 		}
 		indexStr := suffix[1:]
 		index, _ := strconv.Atoi(indexStr)
@@ -72,16 +84,16 @@ func interpolateString(s string, args []string, loopVars map[string]interface{})
 	return result, nil
 }
 
-func interpolateValue(v interface{}, args []string, loopVars map[string]interface{}) (interface{}, error) {
+func interpolateValue(v interface{}, args []string, loopVars map[string]interface{}, namedArgs map[string]string) (interface{}, error) {
 	switch val := v.(type) {
 	case string:
-		return interpolateString(val, args, loopVars)
+		return interpolateString(val, args, loopVars, namedArgs)
 	case map[string]interface{}:
-		return interpolateConfig(val, args, loopVars)
+		return interpolateConfig(val, args, loopVars, namedArgs)
 	case []interface{}:
 		result := make([]interface{}, len(val))
 		for i, elem := range val {
-			interpolated, err := interpolateValue(elem, args, loopVars)
+			interpolated, err := interpolateValue(elem, args, loopVars, namedArgs)
 			if err != nil {
 				return nil, err
 			}
@@ -93,10 +105,10 @@ func interpolateValue(v interface{}, args []string, loopVars map[string]interfac
 	}
 }
 
-func interpolateConfig(config map[string]interface{}, args []string, loopVars map[string]interface{}) (map[string]interface{}, error) {
+func interpolateConfig(config map[string]interface{}, args []string, loopVars map[string]interface{}, namedArgs map[string]string) (map[string]interface{}, error) {
 	result := make(map[string]interface{}, len(config))
 	for k, v := range config {
-		interpolated, err := interpolateValue(v, args, loopVars)
+		interpolated, err := interpolateValue(v, args, loopVars, namedArgs)
 		if err != nil {
 			return nil, err
 		}

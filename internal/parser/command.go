@@ -13,6 +13,7 @@ type Command struct {
 	Sources map[string]string        `yaml:"sources,omitempty"`
 	Help    HelpMetadata             `yaml:"help"`
 	Context string                   `yaml:"context,omitempty"`
+	Params  []ParamDef               `yaml:"params,omitempty"`
 	Steps   []map[string]interface{} `yaml:"steps"`
 }
 
@@ -21,6 +22,12 @@ type HelpMetadata struct {
 	Short string `yaml:"short"`
 	Long  string `yaml:"long,omitempty"`
 	Order int    `yaml:"order,omitempty"`
+}
+
+// ParamDef declares a named positional argument for a command
+type ParamDef struct {
+	Name        string `yaml:"name"`
+	Description string `yaml:"description,omitempty"`
 }
 
 // Step represents a parsed step with its action and configuration

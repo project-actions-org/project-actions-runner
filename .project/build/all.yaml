@@ -2,6 +2,10 @@ help:
   short: Build for all platforms
   order: 3
 
+params:
+  - name: version
+    description: Version string to embed (e.g. 0.3.3)
+
 steps:
   - mkdir: dist
   - for:
@@ -12,9 +16,8 @@ steps:
     steps:
       - remove: dist/command-runner-<item.os>-<item.arch>
       - run: |
-          VERSION="0.3.3"
           BUILD_TIME=$(date +%Y%m%d%H%M)
-          LDFLAGS="-X github.com/project-actions/runner/internal/cli.Version=${VERSION} -X github.com/project-actions/runner/internal/cli.BuildTime=${BUILD_TIME} -s -w"
+          LDFLAGS="-X github.com/project-actions/runner/internal/cli.Version=<args.version> -X github.com/project-actions/runner/internal/cli.BuildTime=${BUILD_TIME} -s -w"
           GOOS=<item.os> GOARCH=<item.arch> go build -ldflags "${LDFLAGS}" -o dist/command-runner-<item.os>-<item.arch> ./cmd/runner
       - run: |
           if [ "$(uname)" = "Darwin" ] && [ "<item.os>" = "darwin" ]; then

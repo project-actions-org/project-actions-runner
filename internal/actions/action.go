@@ -19,6 +19,7 @@ type ExecutionContext struct {
 	Sources       map[string]string // from command file sources: front-matter
 	CommandName   string            // name of the running command
 	LoopVars      map[string]interface{} // populated by for: loops; nil outside a loop
+	NamedArgs     map[string]string      // positional args bound to param names; nil if no params declared
 }
 
 // Action represents an executable action

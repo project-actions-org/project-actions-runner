@@ -98,10 +98,33 @@ func RegisterProjectCommands(rootCmd *cobra.Command, cfg *config.Config) error {
 
 // createDynamicCommand creates a Cobra command from a parsed YAML command
 func createDynamicCommand(name string, cmd *parser.Command, cfg *config.Config) *cobra.Command {
+	use := name
+	for _, p := range cmd.Params {
+		use += " <" + p.Name + ">"
+	}
+
+	long := cmd.Help.Long
+	if len(cmd.Params) > 0 {
+		var sb strings.Builder
+		if long != "" {
+			sb.WriteString(long)
+			sb.WriteString("\n\n")
+		}
+		sb.WriteString("Arguments:\n")
+		for _, p := range cmd.Params {
+			if p.Description != "" {
+				sb.WriteString(fmt.Sprintf("  %-16s %s\n", p.Name, p.Description))
+			} else {
+				sb.WriteString(fmt.Sprintf("  %s\n", p.Name))
+			}
+		}
+		long = sb.String()
+	}
+
 	cobraCmd := &cobra.Command{
-		Use:                name + " [options...]",
+		Use:                use,
 		Short:              cmd.Help.Short,
-		Long:               cmd.Help.Long,
+		Long:               long,
 		DisableFlagParsing: true, // Pass all args through as options
 		RunE: func(cobraCmd *cobra.Command, args []string) error {
 			// Create logger
