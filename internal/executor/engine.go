@@ -35,6 +35,9 @@ func NewEngine(cfg *config.Config, log *logger.Logger) *Engine {
 	engine.actionRegistry.Register("run", &primitives.RunAction{})
 	engine.actionRegistry.Register("check-for", &primitives.CheckForAction{})
 	engine.actionRegistry.Register("command", primitives.NewCommandAction(engine))
+	engine.actionRegistry.Register("mkdir", &primitives.MkdirAction{})
+	engine.actionRegistry.Register("remove", &primitives.RemoveAction{})
+	engine.actionRegistry.Register("link", &primitives.LinkAction{})
 
 	// Register docker-compose actions
 	engine.actionRegistry.Register("compose-up", &compose.ComposeUpAction{})

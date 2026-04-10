@@ -187,6 +187,26 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 		return step, nil
 	}
 
+	if mkdirVal, ok := raw["mkdir"]; ok {
+		step.ActionName = "mkdir"
+		step.Config["mkdir"] = mkdirVal
+		return step, nil
+	}
+
+	if removeVal, ok := raw["remove"]; ok {
+		step.ActionName = "remove"
+		step.Config["remove"] = removeVal
+		return step, nil
+	}
+
+	if _, ok := raw["link"]; ok {
+		step.ActionName = "link"
+		for k, v := range raw {
+			step.Config[k] = v
+		}
+		return step, nil
+	}
+
 	// Unknown step type
 	return nil, fmt.Errorf("unknown step type: %v", raw)
 }
