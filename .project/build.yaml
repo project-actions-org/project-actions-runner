@@ -4,6 +4,7 @@ help:
 
 steps:
   - mkdir: dist
+  - remove: dist/command-runner
   - run: |
       VERSION="0.3.3"
       BUILD_TIME=$(date +%Y%m%d%H%M)

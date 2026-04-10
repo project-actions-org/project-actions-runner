@@ -4,6 +4,7 @@ help:
 
 steps:
   - mkdir: dist
+  - remove: dist/command-runner
   - run: go build -o dist/command-runner ./cmd/runner
   - run: |
       if [ "$(uname)" = "Darwin" ]; then

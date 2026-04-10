@@ -10,6 +10,7 @@ steps:
       - { os: linux,  arch: amd64 }
       - { os: linux,  arch: arm64 }
     steps:
+      - remove: dist/command-runner-<item.os>-<item.arch>
       - run: |
           VERSION="0.3.3"
           BUILD_TIME=$(date +%Y%m%d%H%M)
