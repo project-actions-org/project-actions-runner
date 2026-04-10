@@ -199,10 +199,19 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 		return step, nil
 	}
 
-	if _, ok := raw["link"]; ok {
+	if linkVal, ok := raw["link"]; ok {
 		step.ActionName = "link"
+		// If link: value is a map (src/dest nested under link:), flatten into config
+		if linkMap, ok := linkVal.(map[string]interface{}); ok {
+			for k, v := range linkMap {
+				step.Config[k] = v
+			}
+		}
+		// Copy any remaining sibling keys (for future extensibility)
 		for k, v := range raw {
-			step.Config[k] = v
+			if k != "link" {
+				step.Config[k] = v
+			}
 		}
 		return step, nil
 	}
