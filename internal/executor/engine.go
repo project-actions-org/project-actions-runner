@@ -158,7 +158,7 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 	var interpolatedConfig map[string]interface{}
 	if step.Config != nil {
 		var err error
-		interpolatedConfig, err = interpolateConfig(step.Config, ctx.Args)
+		interpolatedConfig, err = interpolateConfig(step.Config, ctx.Args, ctx.LoopVars)
 		if err != nil {
 			return fmt.Errorf("argument interpolation failed: %w", err)
 		}
