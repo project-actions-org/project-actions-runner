@@ -81,19 +81,29 @@ func (l *Logger) Error(format string, args ...interface{}) {
 	}
 }
 
-// StepStart logs the start of a step
-func (l *Logger) StepStart(actionName string) {
+// StepStart logs the start of a step with an optional detail string
+func (l *Logger) StepStart(actionName, detail string) {
 	if l.level <= LogInfo {
 		green := color.New(color.FgGreen).SprintFunc()
-		fmt.Fprintf(l.writer, "%s Running: %s\n", green("→"), actionName)
+		gray := color.New(color.FgHiBlack).SprintFunc()
+		if detail != "" {
+			fmt.Fprintf(l.writer, "%s Running: %s %s\n", green("→"), actionName, gray(detail))
+		} else {
+			fmt.Fprintf(l.writer, "%s Running: %s\n", green("→"), actionName)
+		}
 	}
 }
 
-// StepSuccess logs successful step completion
-func (l *Logger) StepSuccess(actionName string) {
+// StepSuccess logs successful step completion with an optional detail string
+func (l *Logger) StepSuccess(actionName, detail string) {
 	if l.level <= LogInfo {
 		green := color.New(color.FgGreen).SprintFunc()
-		fmt.Fprintf(l.writer, "%s Completed: %s\n", green("✓"), actionName)
+		gray := color.New(color.FgHiBlack).SprintFunc()
+		if detail != "" {
+			fmt.Fprintf(l.writer, "%s Completed: %s %s\n", green("✓"), actionName, gray(detail))
+		} else {
+			fmt.Fprintf(l.writer, "%s Completed: %s\n", green("✓"), actionName)
+		}
 	}
 }
 

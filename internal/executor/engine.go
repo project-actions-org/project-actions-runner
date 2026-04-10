@@ -190,11 +190,8 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return fmt.Errorf("invalid configuration for action '%s': %w", step.ActionName, err)
 	}
 
-	logStep := step.ActionName != "run" || ctx.Verbose
-
-	if logStep {
-		e.logger.StepStart(step.ActionName)
-	}
+	detail := stepDetail(step.ActionName, interpolatedConfig)
+	e.logger.StepStart(step.ActionName, detail)
 
 	// Execute the action
 	if err := action.Execute(ctx, interpolatedConfig); err != nil {
@@ -202,9 +199,7 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return fmt.Errorf("action '%s' failed: %w", step.ActionName, err)
 	}
 
-	if logStep {
-		e.logger.StepSuccess(step.ActionName)
-	}
+	e.logger.StepSuccess(step.ActionName, detail)
 
 	return nil
 }
@@ -300,7 +295,7 @@ func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.Execution
 	resolver := &external.Resolver{Fetcher: fetcher}
 
 	// Resolve (fetch if needed, detect type, download binary if needed)
-	e.logger.StepStart(step.ActionName)
+	e.logger.StepStart(step.ActionName, "")
 	resolved, err := resolver.Resolve(sourceName, actionName, source, e.config.ProjectRoot)
 	if err != nil {
 		e.logger.StepFail(step.ActionName, err)
@@ -324,8 +319,65 @@ func (e *Engine) executeExternalAction(step *parser.Step, ctx *actions.Execution
 		return fmt.Errorf("action %q failed: %w", step.ActionName, err)
 	}
 
-	e.logger.StepSuccess(step.ActionName)
+	e.logger.StepSuccess(step.ActionName, "")
 	return nil
+}
+
+// stepDetail extracts a human-readable summary from an action's interpolated config.
+func stepDetail(actionName string, config map[string]interface{}) string {
+	switch actionName {
+	case "run":
+		cmd, _ := config["run"].(string)
+		cmd = strings.TrimSpace(cmd)
+		if cmd == "" {
+			return ""
+		}
+		lines := strings.Split(cmd, "\n")
+		var firstLine string
+		for _, l := range lines {
+			l = strings.TrimSpace(l)
+			if l != "" {
+				firstLine = l
+				break
+			}
+		}
+		if len(lines) > 1 {
+			return firstLine + " ..."
+		}
+		return firstLine
+	case "mkdir":
+		return configValueSummary(config["mkdir"])
+	case "remove":
+		return configValueSummary(config["remove"])
+	case "link":
+		src, _ := config["src"].(string)
+		dest, _ := config["dest"].(string)
+		if src != "" && dest != "" {
+			return dest + " -> " + src
+		}
+	case "echo":
+		v, _ := config["echo"].(string)
+		return v
+	}
+	return ""
+}
+
+// configValueSummary returns a short string representation of a string or string-list config value.
+func configValueSummary(v interface{}) string {
+	switch val := v.(type) {
+	case string:
+		return val
+	case []interface{}:
+		parts := make([]string, 0, len(val))
+		for _, item := range val {
+			parts = append(parts, fmt.Sprint(item))
+		}
+		if len(parts) > 3 {
+			return strings.Join(parts[:3], ", ") + ", ..."
+		}
+		return strings.Join(parts, ", ")
+	}
+	return ""
 }
 
 // parseOptions extracts --flag options and positional arguments from command-line args.

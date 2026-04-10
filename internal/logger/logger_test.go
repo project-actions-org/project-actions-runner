@@ -111,7 +111,7 @@ func TestStepStart(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log := NewWithWriter(buf)
 
-	log.StepStart("test-action")
+	log.StepStart("test-action", "")
 	output := buf.String()
 
 	if !strings.Contains(output, "→ Running: test-action") {
@@ -123,7 +123,7 @@ func TestStepSuccess(t *testing.T) {
 	buf := &bytes.Buffer{}
 	log := NewWithWriter(buf)
 
-	log.StepSuccess("test-action")
+	log.StepSuccess("test-action", "")
 	output := buf.String()
 
 	if !strings.Contains(output, "✓ Completed: test-action") {
