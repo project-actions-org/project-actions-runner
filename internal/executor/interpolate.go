@@ -8,7 +8,7 @@ import (
 )
 
 var argsPattern = regexp.MustCompile(`<args(?:\.\d+|\.length)?>`)
-var loopVarPattern = regexp.MustCompile(`<([a-zA-Z_][a-zA-Z0-9_]*)(?:\.([a-zA-Z0-9_]+))?>`)
+var loopVarPattern = regexp.MustCompile(`<([a-zA-Z_][a-zA-Z0-9_]*)(?:\.([a-zA-Z0-9_-]+))?>`)
 
 func interpolateString(s string, args []string, loopVars map[string]interface{}) (string, error) {
 	// Step 1: replace <args>, <args.N>, <args.length> tokens

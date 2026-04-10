@@ -148,6 +148,18 @@ func TestInterpolateStringLoopVars(t *testing.T) {
 			loopVars: map[string]interface{}{"item": "x"},
 			want:     "echo <other>",
 		},
+		{
+			name:     "field absent from map returns token unchanged",
+			input:    "GOOS=<item.missing>",
+			loopVars: map[string]interface{}{"item": map[string]interface{}{"os": "darwin"}},
+			want:     "GOOS=<item.missing>",
+		},
+		{
+			name:     "numeric map field value is stringified",
+			input:    "count=<item.count>",
+			loopVars: map[string]interface{}{"item": map[string]interface{}{"count": 42}},
+			want:     "count=42",
+		},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
