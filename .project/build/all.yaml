@@ -1,0 +1,21 @@
+help:
+  short: Build for all platforms
+  order: 3
+
+steps:
+  - mkdir: dist
+  - for:
+      - { os: darwin, arch: amd64 }
+      - { os: darwin, arch: arm64 }
+      - { os: linux,  arch: amd64 }
+      - { os: linux,  arch: arm64 }
+    steps:
+      - run: |
+          VERSION="0.3.3"
+          BUILD_TIME=$(date +%Y%m%d%H%M)
+          LDFLAGS="-X github.com/project-actions/runner/internal/cli.Version=${VERSION} -X github.com/project-actions/runner/internal/cli.BuildTime=${BUILD_TIME} -s -w"
+          GOOS=<item.os> GOARCH=<item.arch> go build -ldflags "${LDFLAGS}" -o dist/command-runner-<item.os>-<item.arch> ./cmd/runner
+      - run: |
+          if [ "$(uname)" = "Darwin" ] && [ "<item.os>" = "darwin" ]; then
+            codesign --sign - dist/command-runner-<item.os>-<item.arch>
+          fi

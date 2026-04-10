@@ -1,0 +1,6 @@
+help:
+  short: Run tests
+  order: 4
+
+steps:
+  - run: go test -v ./...

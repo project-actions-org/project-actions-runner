@@ -1,0 +1,11 @@
+help:
+  short: Build in dev mode (no version stamp)
+  order: 2
+
+steps:
+  - mkdir: dist
+  - run: go build -o dist/command-runner ./cmd/runner
+  - run: |
+      if [ "$(uname)" = "Darwin" ]; then
+        codesign --sign - dist/command-runner
+      fi

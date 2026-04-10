@@ -1,0 +1,15 @@
+help:
+  short: Build for current platform
+  order: 1
+
+steps:
+  - mkdir: dist
+  - run: |
+      VERSION="0.3.3"
+      BUILD_TIME=$(date +%Y%m%d%H%M)
+      LDFLAGS="-X github.com/project-actions/runner/internal/cli.Version=${VERSION} -X github.com/project-actions/runner/internal/cli.BuildTime=${BUILD_TIME} -s -w"
+      go build -ldflags "${LDFLAGS}" -o dist/command-runner ./cmd/runner
+  - run: |
+      if [ "$(uname)" = "Darwin" ]; then
+        codesign --sign - dist/command-runner
+      fi

@@ -1,0 +1,13 @@
+help:
+  short: Update example project runner symlinks
+  order: 5
+
+steps:
+  - command: build:dev
+  - for:
+      glob: examples/*/.project/.runtime/
+    steps:
+      - remove: <item>/command-runner
+      - link:
+          src: ../../../../dist/command-runner
+          dest: <item>/command-runner

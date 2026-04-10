@@ -1,0 +1,6 @@
+help:
+  short: Remove build artifacts
+  order: 10
+
+steps:
+  - remove: dist
