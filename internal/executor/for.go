@@ -13,6 +13,10 @@ func (e *Engine) executeForLoop(loop *parser.ForLoop, ctx *actions.ExecutionCont
 	if err != nil {
 		return err
 	}
+	if len(items) == 0 {
+		ctx.Logger.Debug("for: loop resolved to zero items, skipping")
+		return nil
+	}
 
 	for _, item := range items {
 		iterCtx := *ctx // shallow copy — isolates LoopVars per iteration
@@ -48,5 +52,6 @@ func resolveForItems(loop *parser.ForLoop, ctx *actions.ExecutionContext) ([]int
 		}
 		return items, nil
 	}
+	// loop.Items may be nil for an empty list — range over nil is a no-op in Go.
 	return loop.Items, nil
 }

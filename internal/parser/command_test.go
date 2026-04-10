@@ -211,6 +211,90 @@ func TestParseStep_FilesystemPrimitiveConfigs(t *testing.T) {
 	})
 }
 
+func TestParseStep_ForLoop(t *testing.T) {
+	t.Run("string list", func(t *testing.T) {
+		raw := map[string]interface{}{
+			"for":   []interface{}{"a", "b"},
+			"steps": []interface{}{map[string]interface{}{"echo": "hi"}},
+		}
+		step, err := ParseStep(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if step.ForLoop == nil {
+			t.Fatal("expected ForLoop to be set")
+		}
+		if step.ForLoop.VarName != "item" {
+			t.Errorf("VarName = %q, want %q", step.ForLoop.VarName, "item")
+		}
+		if len(step.ForLoop.Items) != 2 {
+			t.Errorf("Items len = %d, want 2", len(step.ForLoop.Items))
+		}
+		if len(step.ForLoop.Steps) != 1 {
+			t.Errorf("Steps len = %d, want 1", len(step.ForLoop.Steps))
+		}
+	})
+
+	t.Run("glob source", func(t *testing.T) {
+		raw := map[string]interface{}{
+			"for":   map[string]interface{}{"glob": "src/*/"},
+			"steps": []interface{}{map[string]interface{}{"echo": "hi"}},
+		}
+		step, err := ParseStep(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if step.ForLoop == nil {
+			t.Fatal("expected ForLoop to be set")
+		}
+		if step.ForLoop.Glob != "src/*/" {
+			t.Errorf("Glob = %q, want %q", step.ForLoop.Glob, "src/*/")
+		}
+	})
+
+	t.Run("custom var name via as:", func(t *testing.T) {
+		raw := map[string]interface{}{
+			"for":   []interface{}{"x"},
+			"as":    "entry",
+			"steps": []interface{}{map[string]interface{}{"echo": "hi"}},
+		}
+		step, err := ParseStep(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if step.ForLoop.VarName != "entry" {
+			t.Errorf("VarName = %q, want %q", step.ForLoop.VarName, "entry")
+		}
+	})
+
+	t.Run("empty as: is rejected", func(t *testing.T) {
+		// as: "" should be ignored, VarName stays "item"
+		raw := map[string]interface{}{
+			"for":   []interface{}{"x"},
+			"as":    "",
+			"steps": []interface{}{},
+		}
+		step, err := ParseStep(raw)
+		if err != nil {
+			t.Fatalf("unexpected error: %v", err)
+		}
+		if step.ForLoop.VarName != "item" {
+			t.Errorf("VarName = %q, want %q (empty as: should be ignored)", step.ForLoop.VarName, "item")
+		}
+	})
+
+	t.Run("for:{} with neither list nor glob returns error", func(t *testing.T) {
+		raw := map[string]interface{}{
+			"for":   map[string]interface{}{},
+			"steps": []interface{}{},
+		}
+		_, err := ParseStep(raw)
+		if err == nil {
+			t.Error("expected error for for:{} with no list or glob")
+		}
+	})
+}
+
 func TestParseCommandFile(t *testing.T) {
 	// Create a temporary directory for test files
 	tmpDir, err := os.MkdirTemp("", "parser-test")

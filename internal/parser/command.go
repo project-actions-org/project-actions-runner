@@ -228,7 +228,7 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 	if forVal, ok := raw["for"]; ok {
 		loop := &ForLoop{VarName: "item"}
 
-		if as, ok := raw["as"].(string); ok {
+		if as, ok := raw["as"].(string); ok && as != "" {
 			loop.VarName = as
 		}
 
@@ -239,6 +239,10 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 			if g, ok := v["glob"].(string); ok {
 				loop.Glob = g
 			}
+		}
+
+		if loop.Glob == "" && loop.Items == nil {
+			return nil, fmt.Errorf("for: must specify a list or a glob pattern")
 		}
 
 		if stepsRaw, ok := raw["steps"].([]interface{}); ok {
