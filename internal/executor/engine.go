@@ -159,6 +159,11 @@ func (e *Engine) ExecuteStep(step *parser.Step, ctx *actions.ExecutionContext) e
 		return e.executeForLoop(step.ForLoop, ctx)
 	}
 
+	// Handle if: expressions
+	if step.IfExpr != nil {
+		return e.executeIfExpr(step.IfExpr, ctx)
+	}
+
 	// Interpolate <args> tokens in step config before dispatch
 	var interpolatedConfig map[string]interface{}
 	if step.Config != nil {

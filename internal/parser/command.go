@@ -29,6 +29,7 @@ type Step struct {
 	Config      map[string]interface{}
 	Conditional *Conditional
 	ForLoop     *ForLoop
+	IfExpr      *IfExpr
 }
 
 // ForLoop represents a for: iteration step
@@ -37,6 +38,13 @@ type ForLoop struct {
 	Glob    string        // glob pattern; empty when Items is set
 	VarName string        // loop variable name; defaults to "item"
 	Steps   []Step
+}
+
+// IfExpr represents an if: expression step
+type IfExpr struct {
+	Expression string
+	ThenSteps  []Step
+	ElseSteps  []Step
 }
 
 // Conditional represents conditional execution logic
@@ -258,6 +266,37 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 		}
 
 		step.ForLoop = loop
+		return step, nil
+	}
+
+	if ifVal, ok := raw["if"]; ok {
+		expr := &IfExpr{Expression: fmt.Sprint(ifVal)}
+
+		if thenRaw, ok := raw["then"].([]interface{}); ok {
+			for _, s := range thenRaw {
+				if sMap, ok := s.(map[string]interface{}); ok {
+					subStep, err := ParseStep(sMap)
+					if err != nil {
+						return nil, fmt.Errorf("if: then step error: %w", err)
+					}
+					expr.ThenSteps = append(expr.ThenSteps, *subStep)
+				}
+			}
+		}
+
+		if elseRaw, ok := raw["else"].([]interface{}); ok {
+			for _, s := range elseRaw {
+				if sMap, ok := s.(map[string]interface{}); ok {
+					subStep, err := ParseStep(sMap)
+					if err != nil {
+						return nil, fmt.Errorf("if: else step error: %w", err)
+					}
+					expr.ElseSteps = append(expr.ElseSteps, *subStep)
+				}
+			}
+		}
+
+		step.IfExpr = expr
 		return step, nil
 	}
 
