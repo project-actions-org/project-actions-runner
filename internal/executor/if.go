@@ -75,20 +75,32 @@ func evalIfExpr(expr string, ctx *actions.ExecutionContext) (bool, error) {
 	// != comparison
 	if idx := strings.Index(expr, "!="); idx != -1 {
 		lhs := resolveToken(strings.TrimSpace(expr[:idx]), ctx)
-		rhs := strings.Trim(strings.TrimSpace(expr[idx+2:]), `"`)
+		rhsRaw := strings.TrimSpace(expr[idx+2:])
+		rhs := resolveRHS(rhsRaw, ctx)
 		return lhs != rhs, nil
 	}
 
 	// == comparison
 	if idx := strings.Index(expr, "=="); idx != -1 {
 		lhs := resolveToken(strings.TrimSpace(expr[:idx]), ctx)
-		rhs := strings.Trim(strings.TrimSpace(expr[idx+2:]), `"`)
+		rhsRaw := strings.TrimSpace(expr[idx+2:])
+		rhs := resolveRHS(rhsRaw, ctx)
 		return lhs == rhs, nil
 	}
 
 	// Bare token: truthy if non-empty and not "false"
 	val := resolveToken(expr, ctx)
 	return val != "" && val != "false", nil
+}
+
+// resolveRHS resolves the right-hand side of a comparison.
+// If the value is a quoted string literal, the quotes are stripped and the literal is returned.
+// Otherwise the value is passed through resolveToken (allowing option.x, env.X, item.field on the RHS).
+func resolveRHS(rhs string, ctx *actions.ExecutionContext) string {
+	if strings.HasPrefix(rhs, `"`) && strings.HasSuffix(rhs, `"`) {
+		return strings.Trim(rhs, `"`)
+	}
+	return resolveToken(rhs, ctx)
 }
 
 // resolveToken looks up a DSL token (option.x, env.X, item.field, varname.field).
@@ -109,6 +121,9 @@ func resolveToken(token string, ctx *actions.ExecutionContext) string {
 			if m, ok := val.(map[string]interface{}); ok {
 				return fmt.Sprint(m[field])
 			}
+			// var found but is a scalar — field access on scalar returns empty (falsy)
+			ctx.Logger.Debug("if: field access on scalar loop variable %q ignored", field)
+			return ""
 		}
 	} else if val, ok := ctx.LoopVars[token]; ok {
 		return fmt.Sprint(val)

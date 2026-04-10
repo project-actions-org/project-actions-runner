@@ -44,6 +44,9 @@ func TestEvalIfExpr(t *testing.T) {
 		{"option.missing || option.missing", false},
 		{"item.os == darwin", true},
 		{"item.os == linux", false},
+		// New cases:
+		{"item.os == env.CI", false},                   // RHS resolved: env.CI="true", item.os="darwin" → false
+		{"option.verbose == option.verbose", true},     // both sides resolve to "true"
 	}
 	for _, tt := range tests {
 		t.Run(tt.expr, func(t *testing.T) {
@@ -55,6 +58,23 @@ func TestEvalIfExpr(t *testing.T) {
 				t.Errorf("evalIfExpr(%q) = %v, want %v", tt.expr, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestEvalIfExpr_ScalarLoopVar(t *testing.T) {
+	ctx := &actions.ExecutionContext{
+		Options:     map[string]string{},
+		Environment: map[string]string{},
+		LoopVars:    map[string]interface{}{"item": "darwin"},
+		Logger:      logger.New(),
+	}
+	// field access on scalar loop var should be falsy (not literal token)
+	got, err := evalIfExpr("item.os == darwin", ctx)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if got {
+		t.Error("expected false: field access on scalar loop var should be falsy")
 	}
 }
 
