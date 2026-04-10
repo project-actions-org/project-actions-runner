@@ -28,6 +28,15 @@ type Step struct {
 	ActionName  string
 	Config      map[string]interface{}
 	Conditional *Conditional
+	ForLoop     *ForLoop
+}
+
+// ForLoop represents a for: iteration step
+type ForLoop struct {
+	Items   []interface{} // string or map items; empty when Glob is set
+	Glob    string        // glob pattern; empty when Items is set
+	VarName string        // loop variable name; defaults to "item"
+	Steps   []Step
 }
 
 // Conditional represents conditional execution logic
@@ -213,6 +222,38 @@ func ParseStep(raw map[string]interface{}) (*Step, error) {
 				step.Config[k] = v
 			}
 		}
+		return step, nil
+	}
+
+	if forVal, ok := raw["for"]; ok {
+		loop := &ForLoop{VarName: "item"}
+
+		if as, ok := raw["as"].(string); ok {
+			loop.VarName = as
+		}
+
+		switch v := forVal.(type) {
+		case []interface{}:
+			loop.Items = v
+		case map[string]interface{}:
+			if g, ok := v["glob"].(string); ok {
+				loop.Glob = g
+			}
+		}
+
+		if stepsRaw, ok := raw["steps"].([]interface{}); ok {
+			for _, s := range stepsRaw {
+				if sMap, ok := s.(map[string]interface{}); ok {
+					subStep, err := ParseStep(sMap)
+					if err != nil {
+						return nil, fmt.Errorf("for: sub-step error: %w", err)
+					}
+					loop.Steps = append(loop.Steps, *subStep)
+				}
+			}
+		}
+
+		step.ForLoop = loop
 		return step, nil
 	}
 
