@@ -11,6 +11,15 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// ANSI color codes
+const (
+	colorReset  = "\033[0m"
+	colorBold   = "\033[1m"
+	colorGreen  = "\033[32m"
+	colorYellow = "\033[33m"
+	colorCyan   = "\033[36m"
+)
+
 var rootCmd = &cobra.Command{
 	Use:     "project",
 	Short:   "Project Actions - Run workflows from YAML",
@@ -79,8 +88,8 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 	}
 	sort.Strings(nsKeys)
 
-	fmt.Fprintf(out, "Project Actions v%s\n\n", GetVersion())
-	fmt.Fprintf(out, "Usage:\n")
+	fmt.Fprintf(out, "%sProject Actions%s v%s\n\n", colorBold, colorReset, GetVersion())
+	fmt.Fprintf(out, "%sUsage:%s\n", colorBold, colorReset)
 	if cmd.Runnable() {
 		fmt.Fprintf(out, "  %s\n", cmd.UseLine())
 	}
@@ -90,31 +99,31 @@ func customHelpFunc(cmd *cobra.Command, args []string) {
 	fmt.Fprintf(out, "\n")
 
 	if len(orderedCommands) > 0 {
-		fmt.Fprintf(out, "Available Commands:\n")
+		fmt.Fprintf(out, "%sAvailable Commands:%s\n", colorYellow, colorReset)
 		for _, c := range orderedCommands {
-			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+			fmt.Fprintf(out, "  %s%-20s%s %s\n", colorGreen, c.Name(), colorReset, c.Short)
 		}
 		fmt.Fprintf(out, "\n")
 	}
 
 	for _, ns := range nsKeys {
-		fmt.Fprintf(out, "[%s]\n", ns)
+		fmt.Fprintf(out, "%s[%s]%s\n", colorCyan, ns, colorReset)
 		for _, c := range namespaceCommands[ns] {
-			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+			fmt.Fprintf(out, "  %s%-20s%s %s\n", colorGreen, c.Name(), colorReset, c.Short)
 		}
 		fmt.Fprintf(out, "\n")
 	}
 
 	if len(globalCmds) > 0 {
-		fmt.Fprintf(out, "Global Commands:\n")
+		fmt.Fprintf(out, "%sGlobal Commands:%s\n", colorYellow, colorReset)
 		for _, c := range globalCmds {
-			fmt.Fprintf(out, "  %-20s %s\n", c.Name(), c.Short)
+			fmt.Fprintf(out, "  %s%-20s%s %s\n", colorGreen, c.Name(), colorReset, c.Short)
 		}
 		fmt.Fprintf(out, "\n")
 	}
 
 	if cmd.HasAvailableLocalFlags() {
-		fmt.Fprintf(out, "Flags:\n")
+		fmt.Fprintf(out, "%sFlags:%s\n", colorYellow, colorReset)
 		fmt.Fprintf(out, "%s\n", cmd.LocalFlags().FlagUsages())
 	}
 
@@ -148,11 +157,11 @@ func printNamespaceHelp(commandPath string, namespace string, w io.Writer) {
 	}
 	sort.Strings(relevantKeys)
 
-	fmt.Fprintf(w, "Usage:\n  %s:<command>\n\n", commandPath)
+	fmt.Fprintf(w, "%sUsage:%s\n  %s:<command>\n\n", colorBold, colorReset, commandPath)
 	for _, k := range relevantKeys {
-		fmt.Fprintf(w, "[%s]\n", k)
+		fmt.Fprintf(w, "%s[%s]%s\n", colorCyan, k, colorReset)
 		for _, c := range namespaceCommands[k] {
-			fmt.Fprintf(w, "  %-20s %s\n", c.Name(), c.Short)
+			fmt.Fprintf(w, "  %s%-20s%s %s\n", colorGreen, c.Name(), colorReset, c.Short)
 		}
 		fmt.Fprintf(w, "\n")
 	}
