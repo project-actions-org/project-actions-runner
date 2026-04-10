@@ -106,6 +106,33 @@ func TestParseStep(t *testing.T) {
 			wantErr:    false,
 		},
 		{
+			name: "mkdir step",
+			raw: map[string]interface{}{
+				"mkdir": "dist",
+			},
+			wantAction: "mkdir",
+			wantErr:    false,
+		},
+		{
+			name: "remove step",
+			raw: map[string]interface{}{
+				"remove": "dist",
+			},
+			wantAction: "remove",
+			wantErr:    false,
+		},
+		{
+			name: "link step with src and dest",
+			raw: map[string]interface{}{
+				"link": map[string]interface{}{
+					"src":  "/from",
+					"dest": "/to",
+				},
+			},
+			wantAction: "link",
+			wantErr:    false,
+		},
+		{
 			name:       "unknown step type",
 			raw:        map[string]interface{}{"unknown": "value"},
 			wantAction: "",
@@ -133,6 +160,55 @@ func TestParseStep(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestParseStep_FilesystemPrimitiveConfigs(t *testing.T) {
+	t.Run("mkdir config value", func(t *testing.T) {
+		step, err := ParseStep(map[string]interface{}{"mkdir": "dist"})
+		if err != nil {
+			t.Fatalf("ParseStep() error = %v", err)
+		}
+		if step.ActionName != "mkdir" {
+			t.Errorf("ActionName = %q, want %q", step.ActionName, "mkdir")
+		}
+		if step.Config["mkdir"] != "dist" {
+			t.Errorf("config[mkdir] = %v, want dist", step.Config["mkdir"])
+		}
+	})
+
+	t.Run("remove config value", func(t *testing.T) {
+		step, err := ParseStep(map[string]interface{}{"remove": "dist"})
+		if err != nil {
+			t.Fatalf("ParseStep() error = %v", err)
+		}
+		if step.ActionName != "remove" {
+			t.Errorf("ActionName = %q, want %q", step.ActionName, "remove")
+		}
+		if step.Config["remove"] != "dist" {
+			t.Errorf("config[remove] = %v, want dist", step.Config["remove"])
+		}
+	})
+
+	t.Run("link src and dest flattened into config", func(t *testing.T) {
+		step, err := ParseStep(map[string]interface{}{
+			"link": map[string]interface{}{
+				"src":  "/from",
+				"dest": "/to",
+			},
+		})
+		if err != nil {
+			t.Fatalf("ParseStep() error = %v", err)
+		}
+		if step.ActionName != "link" {
+			t.Errorf("ActionName = %q, want %q", step.ActionName, "link")
+		}
+		if step.Config["src"] != "/from" {
+			t.Errorf("config[src] = %v, want /from", step.Config["src"])
+		}
+		if step.Config["dest"] != "/to" {
+			t.Errorf("config[dest] = %v, want /to", step.Config["dest"])
+		}
+	})
 }
 
 func TestParseCommandFile(t *testing.T) {

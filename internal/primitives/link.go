@@ -24,12 +24,23 @@ func (a *LinkAction) Execute(ctx *actions.ExecutionContext, config map[string]in
 	srcStr := fmt.Sprint(src)
 	destStr := fmt.Sprint(dest)
 
+	// dest is resolved relative to WorkingDir if not absolute.
+	// src is passed verbatim to os.Symlink: if relative, it is resolved from
+	// dest's directory (the directory containing the symlink), not from WorkingDir.
+	// This matches ln -sf semantics.
 	if !filepath.IsAbs(destStr) {
 		destStr = filepath.Join(ctx.WorkingDir, destStr)
 	}
 
 	// Remove existing file or symlink at dest (ln -f semantics)
-	_ = os.Remove(destStr)
+	if fi, err := os.Lstat(destStr); err == nil {
+		if fi.IsDir() {
+			return fmt.Errorf("link: dest %s is an existing directory, cannot replace with symlink", destStr)
+		}
+		if err := os.Remove(destStr); err != nil {
+			return fmt.Errorf("link: remove existing dest %s: %w", destStr, err)
+		}
+	}
 
 	if err := os.Symlink(srcStr, destStr); err != nil {
 		return fmt.Errorf("link %s -> %s: %w", destStr, srcStr, err)

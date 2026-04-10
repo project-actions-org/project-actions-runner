@@ -4,8 +4,6 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
-
-	"github.com/project-actions/runner/internal/parser"
 )
 
 func TestLinkAction_Execute(t *testing.T) {
@@ -60,29 +58,6 @@ func TestLinkAction_Execute(t *testing.T) {
 			t.Error("expected error, got nil")
 		}
 	})
-}
-
-func TestLinkStep_ParsedFromYAML(t *testing.T) {
-	// Simulates: - link:\n    src: /from\n    dest: /to
-	raw := map[string]interface{}{
-		"link": map[string]interface{}{
-			"src":  "/from",
-			"dest": "/to",
-		},
-	}
-	step, err := parser.ParseStep(raw)
-	if err != nil {
-		t.Fatalf("ParseStep error: %v", err)
-	}
-	if step.ActionName != "link" {
-		t.Errorf("ActionName = %q, want %q", step.ActionName, "link")
-	}
-	if step.Config["src"] != "/from" {
-		t.Errorf("config[src] = %v, want /from", step.Config["src"])
-	}
-	if step.Config["dest"] != "/to" {
-		t.Errorf("config[dest] = %v, want /to", step.Config["dest"])
-	}
 }
 
 func TestLinkAction_Validate(t *testing.T) {
